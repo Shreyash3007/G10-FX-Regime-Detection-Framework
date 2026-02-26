@@ -365,15 +365,15 @@ def main():
 
     # final summary
     print("\n" + "=" * 62)
-    print("  COT SUMMARY")
+    print("  COT SUMMARY (Leveraged Money)")
     print("=" * 62)
 
     for ticker, df in positioning.items():
         latest      = df.iloc[-1]
         latest_date = df.index[-1].date()
-        direction   = "LONG" if latest["net_position"] > 0 else "SHORT"
-        p           = latest["percentile"]
-        net         = latest["net_position"]
+        direction   = "LONG" if latest["lev_net"] > 0 else "SHORT"
+        p           = latest["lev_percentile"]
+        net         = latest["lev_net"]
 
         if p >= 80:
             regime = "CROWDED LONG -- limited upside, watch for reversal"
@@ -388,7 +388,7 @@ def main():
 
         print(f"\n  {ticker} (as of {latest_date}):")
         print(f"    net position : {net:>+,.0f} contracts ({direction})")
-        print(f"    % of OI      : {latest['net_pct_oi']:>+.1f}%")
+        print(f"    % of OI      : {latest['lev_pct_oi']:>+.1f}%")
         print(f"    percentile   : {p:.0f}th (vs last {HISTORY_YEARS} years)")
         print(f"    regime       : {regime}")
 
