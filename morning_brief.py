@@ -220,19 +220,19 @@ def build_brief(df):
     eur_lev_net_str = _net(eur_net)
     eur_lev_oi_str  = f"{eur_pct_oi:>+.1f}% OI" if not pd.isna(eur_pct_oi) else "n/a"
     eur_lev_regime  = _regime_label(eur_pct, eur_net)
-    lines.append(f"    Leveraged Money   : {eur_lev_net_str:>+,} contracts | {eur_lev_oi_str:>+6} | {eur_lev_regime}")
+    lines.append(f"    Leveraged Money   : {eur_lev_net_str} contracts | {eur_lev_oi_str} | {eur_lev_regime}")
 
     # Asset Manager
     eur_am_net_str  = _net(eur_am_net)
     eur_am_oi_str   = f"{eur_am_pct_oi:>+.1f}% OI" if not pd.isna(eur_am_pct_oi) else "n/a"
     eur_am_regime   = _regime_label(eur_am_pct, eur_am_net)
-    lines.append(f"    Asset Manager     : {eur_am_net_str:>+,} contracts | {eur_am_oi_str:>+6} | {eur_am_regime}")
+    lines.append(f"    Asset Manager     : {eur_am_net_str} contracts | {eur_am_oi_str} | {eur_am_regime}")
 
     # NonCommercial
     eur_nc_net_str  = _net(eur_nc_net)
     eur_nc_oi_str   = f"{eur_nc_pct_oi:>+.1f}% OI" if not pd.isna(eur_nc_pct_oi) else "n/a"
     eur_nc_regime   = _regime_label(eur_nc_pct, eur_nc_net)
-    lines.append(f"    NonCommercial     : {eur_nc_net_str:>+,} contracts | {eur_nc_oi_str:>+6} | {eur_nc_regime}")
+    lines.append(f"    NonCommercial     : {eur_nc_net_str} contracts | {eur_nc_oi_str} | {eur_nc_regime}")
 
     # Divergence flag for EUR
     eur_div = _divergence_flag(eur_net, eur_am_net)
@@ -247,19 +247,19 @@ def build_brief(df):
     jpy_lev_net_str = _net(jpy_net)
     jpy_lev_oi_str  = f"{jpy_pct_oi:>+.1f}% OI" if not pd.isna(jpy_pct_oi) else "n/a"
     jpy_lev_regime  = _regime_label(jpy_pct, jpy_net)
-    lines.append(f"    Leveraged Money   : {jpy_lev_net_str:>+,} contracts | {jpy_lev_oi_str:>+6} | {jpy_lev_regime}")
+    lines.append(f"    Leveraged Money   : {jpy_lev_net_str} contracts | {jpy_lev_oi_str} | {jpy_lev_regime}")
 
     # Asset Manager
     jpy_am_net_str  = _net(jpy_am_net)
     jpy_am_oi_str   = f"{jpy_am_pct_oi:>+.1f}% OI" if not pd.isna(jpy_am_pct_oi) else "n/a"
     jpy_am_regime   = _regime_label(jpy_am_pct, jpy_am_net)
-    lines.append(f"    Asset Manager     : {jpy_am_net_str:>+,} contracts | {jpy_am_oi_str:>+6} | {jpy_am_regime}")
+    lines.append(f"    Asset Manager     : {jpy_am_net_str} contracts | {jpy_am_oi_str} | {jpy_am_regime}")
 
     # NonCommercial
     jpy_nc_net_str  = _net(jpy_nc_net)
     jpy_nc_oi_str   = f"{jpy_nc_pct_oi:>+.1f}% OI" if not pd.isna(jpy_nc_pct_oi) else "n/a"
     jpy_nc_regime   = _regime_label(jpy_nc_pct, jpy_nc_net)
-    lines.append(f"    NonCommercial     : {jpy_nc_net_str:>+,} contracts | {jpy_nc_oi_str:>+6} | {jpy_nc_regime}")
+    lines.append(f"    NonCommercial     : {jpy_nc_net_str} contracts | {jpy_nc_oi_str} | {jpy_nc_regime}")
 
     # Divergence flag for JPY
     jpy_div = _divergence_flag(jpy_net, jpy_am_net)
