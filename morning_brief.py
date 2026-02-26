@@ -51,6 +51,19 @@ def _regime_label(percentile, net):
         return f"NEUTRAL SHORT ({percentile:.0f}th pct)"
 
 
+def _divergence_flag(lev_net, assetmgr_net):
+    """Return divergence flag if Lev Money and Asset Manager point in opposite directions."""
+    if pd.isna(lev_net) or pd.isna(assetmgr_net):
+        return ""
+    
+    lev_sign = lev_net > 0
+    am_sign = assetmgr_net > 0
+    
+    if lev_sign != am_sign:
+        return "  >> DIVERGENCE: Leveraged Money and Asset Manager opposing — signal reliability reduced"
+    return ""
+
+
 def _eur_interpretation(spread_10y, spread_10y_12m, eur_pct, eur_net):
     """One-line plain English read on EUR/USD regime."""
     # direction from spread
@@ -136,15 +149,31 @@ def build_brief(df):
     jpy_pct_oi  = row.get("JPY_net_pct_oi",      float('nan'))
     jpy_pct     = row.get("JPY_percentile",      float('nan'))
 
+    # EUR Asset Manager
+    eur_am_net  = row.get("EUR_assetmgr_net",    float('nan'))
+    eur_am_pct_oi = row.get("EUR_assetmgr_pct_oi", float('nan'))
+    eur_am_pct  = row.get("EUR_assetmgr_percentile", float('nan'))
+
+    # EUR NonCommercial
+    eur_nc_net  = row.get("EUR_noncom_net",      float('nan'))
+    eur_nc_pct_oi = row.get("EUR_noncom_pct_oi", float('nan'))
+    eur_nc_pct  = row.get("EUR_noncom_percentile", float('nan'))
+
+    # JPY Asset Manager
+    jpy_am_net  = row.get("JPY_assetmgr_net",    float('nan'))
+    jpy_am_pct_oi = row.get("JPY_assetmgr_pct_oi", float('nan'))
+    jpy_am_pct  = row.get("JPY_assetmgr_percentile", float('nan'))
+
+    # JPY NonCommercial
+    jpy_nc_net  = row.get("JPY_noncom_net",      float('nan'))
+    jpy_nc_pct_oi = row.get("JPY_noncom_pct_oi", float('nan'))
+    jpy_nc_pct  = row.get("JPY_noncom_percentile", float('nan'))
+
     # COT data is weekly -- find the actual COT date (last non-NaN)
     cot_date = "n/a"
     if os.path.exists("data/cot_latest.csv"):
         cot_raw = pd.read_csv("data/cot_latest.csv", index_col=0, parse_dates=True)
         cot_date = str(cot_raw.index[-1].date())
-
-    # -- regime labels --
-    eur_regime = _regime_label(eur_pct, eur_net)
-    jpy_regime = _regime_label(jpy_pct, jpy_net)
 
     # -- interpretations --
     eur_read = _eur_interpretation(de10_today, de10_12m, eur_pct, eur_net)
@@ -180,16 +209,62 @@ def build_brief(df):
 
     # ── POSITIONING ───────────────────────────────────────────────────────────
     lines.append("")
-    lines.append(f"  POSITIONING  (Leveraged Money, 3Y percentile  |  COT: {cot_date})")
+    lines.append(f"  COT POSITIONING (as of {cot_date})")
     lines.append(f"  {'-'*66}")
 
-    eur_net_str = _net(eur_net)
-    eur_oi_str  = f"{eur_pct_oi:>+.1f}% OI" if not pd.isna(eur_pct_oi) else "n/a"
-    jpy_net_str = _net(jpy_net)
-    jpy_oi_str  = f"{jpy_pct_oi:>+.1f}% OI" if not pd.isna(jpy_pct_oi) else "n/a"
+    # EUR/USD positioning - all three categories
+    lines.append("")
+    lines.append(f"  EUR/USD:")
 
-    lines.append(f"  EUR  {eur_net_str} contracts  |  {eur_oi_str}  |  {eur_regime}")
-    lines.append(f"  JPY  {jpy_net_str} contracts  |  {jpy_oi_str}  |  {jpy_regime}")
+    # Leveraged Money
+    eur_lev_net_str = _net(eur_net)
+    eur_lev_oi_str  = f"{eur_pct_oi:>+.1f}% OI" if not pd.isna(eur_pct_oi) else "n/a"
+    eur_lev_regime  = _regime_label(eur_pct, eur_net)
+    lines.append(f"    Leveraged Money   : {eur_lev_net_str:>+,} contracts | {eur_lev_oi_str:>+6} | {eur_lev_regime}")
+
+    # Asset Manager
+    eur_am_net_str  = _net(eur_am_net)
+    eur_am_oi_str   = f"{eur_am_pct_oi:>+.1f}% OI" if not pd.isna(eur_am_pct_oi) else "n/a"
+    eur_am_regime   = _regime_label(eur_am_pct, eur_am_net)
+    lines.append(f"    Asset Manager     : {eur_am_net_str:>+,} contracts | {eur_am_oi_str:>+6} | {eur_am_regime}")
+
+    # NonCommercial
+    eur_nc_net_str  = _net(eur_nc_net)
+    eur_nc_oi_str   = f"{eur_nc_pct_oi:>+.1f}% OI" if not pd.isna(eur_nc_pct_oi) else "n/a"
+    eur_nc_regime   = _regime_label(eur_nc_pct, eur_nc_net)
+    lines.append(f"    NonCommercial     : {eur_nc_net_str:>+,} contracts | {eur_nc_oi_str:>+6} | {eur_nc_regime}")
+
+    # Divergence flag for EUR
+    eur_div = _divergence_flag(eur_net, eur_am_net)
+    if eur_div:
+        lines.append(eur_div)
+
+    # USD/JPY positioning - all three categories
+    lines.append("")
+    lines.append(f"  USD/JPY:")
+
+    # Leveraged Money
+    jpy_lev_net_str = _net(jpy_net)
+    jpy_lev_oi_str  = f"{jpy_pct_oi:>+.1f}% OI" if not pd.isna(jpy_pct_oi) else "n/a"
+    jpy_lev_regime  = _regime_label(jpy_pct, jpy_net)
+    lines.append(f"    Leveraged Money   : {jpy_lev_net_str:>+,} contracts | {jpy_lev_oi_str:>+6} | {jpy_lev_regime}")
+
+    # Asset Manager
+    jpy_am_net_str  = _net(jpy_am_net)
+    jpy_am_oi_str   = f"{jpy_am_pct_oi:>+.1f}% OI" if not pd.isna(jpy_am_pct_oi) else "n/a"
+    jpy_am_regime   = _regime_label(jpy_am_pct, jpy_am_net)
+    lines.append(f"    Asset Manager     : {jpy_am_net_str:>+,} contracts | {jpy_am_oi_str:>+6} | {jpy_am_regime}")
+
+    # NonCommercial
+    jpy_nc_net_str  = _net(jpy_nc_net)
+    jpy_nc_oi_str   = f"{jpy_nc_pct_oi:>+.1f}% OI" if not pd.isna(jpy_nc_pct_oi) else "n/a"
+    jpy_nc_regime   = _regime_label(jpy_nc_pct, jpy_nc_net)
+    lines.append(f"    NonCommercial     : {jpy_nc_net_str:>+,} contracts | {jpy_nc_oi_str:>+6} | {jpy_nc_regime}")
+
+    # Divergence flag for JPY
+    jpy_div = _divergence_flag(jpy_net, jpy_am_net)
+    if jpy_div:
+        lines.append(jpy_div)
 
     # ── REGIME READS ──────────────────────────────────────────────────────────
     lines.append("")

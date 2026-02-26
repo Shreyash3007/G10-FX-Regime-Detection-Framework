@@ -210,18 +210,40 @@ def create_pair_dashboard(df, pair_config):
             net_range = net_max - net_min if net_max != net_min else abs(net_max) or 1
             ax3.set_ylim(net_min - 0.2 * net_range, net_max + 0.2 * net_range)
 
-        # -- percentile line on secondary axis --
+        # -- percentile lines on secondary axis --
         if has_pct:
             pct_vals = d[pct_col].dropna()
 
             ax3_r = ax3.twinx()
 
+            # LEVERAGED MONEY percentile (primary line)
             # -- Fix 1: navy color, zorder=5, linewidth=2.0 --
             ax3_r.plot(
                 pct_vals.index, pct_vals,
                 color=PCT_LINE_COLOR, linewidth=2.0,
-                label='Percentile (3Y)', zorder=5
+                label='Lev Money Percentile (3Y)', zorder=5
             )
+
+            # ASSET MANAGER percentile (secondary line, dashed purple)
+            assetmgr_pct_col = pair_config.get("assetmgr_pct_col")
+            if assetmgr_pct_col and assetmgr_pct_col in d.columns and d[assetmgr_pct_col].notna().sum() > 5:
+                am_pct_vals = d[assetmgr_pct_col].dropna()
+                ax3_r.plot(
+                    am_pct_vals.index, am_pct_vals,
+                    color='#8e44ad', linewidth=1.8, linestyle='--',
+                    label='Asset Manager Percentile (3Y)', zorder=4, alpha=0.8
+                )
+
+            # NONCOMMERCIAL percentile (tertiary line, dotted orange)
+            # -- commented out to reduce chart clutter; kept in text brief only --
+            # noncom_pct_col = pair_config.get("noncom_pct_col")
+            # if noncom_pct_col and noncom_pct_col in d.columns and d[noncom_pct_col].notna().sum() > 5:
+            #     nc_pct_vals = d[noncom_pct_col].dropna()
+            #     ax3_r.plot(
+            #         nc_pct_vals.index, nc_pct_vals,
+            #         color='#e67e22', linewidth=1.6, linestyle=':',
+            #         label='NonCommercial Percentile (3Y)', zorder=3, alpha=0.7
+            #     )
 
             # -- Fix 2: deep red/green threshold lines, zorder=6 --
             ax3_r.axhline(
@@ -285,7 +307,7 @@ def create_pair_dashboard(df, pair_config):
 
         # -- Fix 12: subtitle styling --
         ax3.set_title(
-            f"Leveraged Money Positioning (3Y)  |  {regime_label}",
+            f"Positioning (3Y) — Lev Money (primary) + Asset Manager (dashed)  |  {regime_label}",
             fontsize=10, color='#2c3e50'
         )
 
@@ -297,7 +319,7 @@ def create_pair_dashboard(df, pair_config):
             ha='center', va='center',
             fontsize=11, color='gray'
         )
-        ax3.set_title("Leveraged Money Positioning (3Y)",
+        ax3.set_title("Positioning (3Y) — All three COT categories",
                        fontsize=10, color='#2c3e50')
 
     ax3.xaxis.set_major_formatter(fmt)
@@ -336,7 +358,9 @@ def main():
         "spread_10y_label": "US 2Y - DE 10Y (cross-maturity)",
         "spread_2y_label":  "US 2Y - DE 2Y (same-maturity)",
         "spread_desc":      "narrowing = EUR/USD should rise",
-        "pct_col":          "EUR_percentile",
+        "pct_col":          "EUR_percentile",               # Leveraged Money percentile
+        "assetmgr_pct_col": "EUR_assetmgr_percentile",     # Asset Manager percentile
+        "noncom_pct_col":   "EUR_noncom_percentile",        # NonCommercial percentile
         "net_col":          "EUR_net_pos",
         "price_label":      "USD per 1 EUR",
         "price_desc":       "UP = euro stronger vs dollar",
@@ -354,7 +378,9 @@ def main():
         "spread_10y_label": "US 2Y - JP 10Y (cross-maturity)",
         "spread_2y_label":  "US 2Y - JP 2Y (same-maturity)",
         "spread_desc":      "narrowing = USD/JPY should fall",
-        "pct_col":          "JPY_percentile",
+        "pct_col":          "JPY_percentile",               # Leveraged Money percentile
+        "assetmgr_pct_col": "JPY_assetmgr_percentile",     # Asset Manager percentile
+        "noncom_pct_col":   "JPY_noncom_percentile",        # NonCommercial percentile
         "net_col":          "JPY_net_pos",
         "price_label":      "JPY per 1 USD",
         "price_desc":       "UP = dollar stronger vs yen",
