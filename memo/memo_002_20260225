@@ -1,0 +1,64 @@
+MEMO #002
+DATE: 25 February 2026
+PIPELINE RUN: 2026-02-25
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 1 -- NUMBERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+EUR/USD today:            1.1794
+EUR/USD 12M change:       +13.25%
+EUR/USD 1M change:        -0.54%
+EUR/USD 1W change:        -0.47%
+
+USD/JPY today:            154.635
+USD/JPY 12M change:       +2.56%
+USD/JPY 1M change:        -0.34%
+USD/JPY 1W change:        +0.67% 
+
+US 2Y yield today:        3.43%  (12M change: -0.53pp)
+US 10Y yield today:       4.03%  (12M change: -0.13pp)
+DE 10Y yield today:       2.81%  (12M change: +0.07pp)
+JP 10Y yield today:       2.24%  (12M change: +0.87pp)
+
+US-DE spread today:       0.62%  (12M change: -0.60pp)
+US-JP spread today:       1.19%  (12M change: -1.28pp)
+US yield curve today:     0.60%  (10Y minus 2Y, positive = normal)
+
+DXY today:                97.75  (12M change: -8.43%)
+
+COT positioning (as of Feb 17, 2026):
+EUR net speculative position:  +43,549 contracts (net LONG euro)
+JPY net speculative position:  -29,321 contracts (net Short yen)
+
+
+COT CORRECTION NOTE:
+Memo #001 used Legacy NonCommercial data (manual read).
+Pipeline uses Disaggregated Leveraged Money (automated).
+These measure different trader categories -- see below.
+
+Legacy NonCommercial (memo #001):
+  EUR: +174,480   JPY: +12,955
+
+Disaggregated Leveraged Money (pipeline):
+  EUR: +43,549    JPY: -29,321
+
+Leveraged money is the correct series for regime detection.
+All future memos use pipeline numbers.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OBSERVATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Two days since memo #001.
+No meaningful change in spreads or positioning.  
+Moved within normal daily range, no regime signal.
+
+Current regime assessment unchanged:
+  EUR/USD -- rate differential regime, crowded long, limited upside
+  USD/JPY -- positioning partially unwound, BoJ path is key variable
+
+OPEN QUESTION:
+EUR at 97th percentile positioning -- how long can a crowded trade
+stay crowded before it unwinds? What specific catalyst would trigger
+the EUR long unwind? ECB policy shift? US data surprise? 

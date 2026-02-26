@@ -1,0 +1,158 @@
+MEMO #001
+DATE: 23 February 2026
+PAIRS: EUR/USD + USD/JPY
+DATA SOURCE: FRED API + Yahoo Finance (pipeline.py) + CFTC COT Report
+PIPELINE RUN: 2026-02-23, data as of 2026-02-20
+COT DATA: CFTC Legacy Report, CME, Futures Only, as of 2026-02-17
+
+NOTE ON DATA QUALITY: JP 10Y was initially sourced from OECD which returned 0.73%.
+FRED has the correct value at 2.24% -- reflects BoJ rate hikes since 2024.
+All numbers in this memo use the corrected FRED data. Earlier pipeline runs
+had an overstated US-JP spread as a result. Fixed before this memo was written.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 1 -- NUMBERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+EUR/USD today:            1.1769
+EUR/USD 12M change:       +12.21%
+EUR/USD 1M change:        +0.82%
+EUR/USD 1W change:        -0.84%
+
+USD/JPY today:            155.16
+USD/JPY 12M change:       +4.25%
+USD/JPY 1M change:        -2.08%
+USD/JPY 1W change:        +1.53%
+
+US 2Y yield today:        3.47%  (12M change: -0.60pp)
+US 10Y yield today:       4.08%  (12M change: -0.21pp)
+DE 10Y yield today:       2.81%  (12M change: +0.40pp)
+JP 10Y yield today:       2.24%  (12M change: +0.87pp)
+
+US-DE spread today:       0.62%  (12M change: -1.04pp)
+US-JP spread today:       1.19%  (12M change: -1.51pp)
+US yield curve today:     0.61%  (10Y minus 2Y, positive = normal)
+
+DXY today:                97.80  (12M change: -8.80%)
+
+COT positioning (as of Feb 17, 2026):
+EUR net speculative position:  +174,480 contracts (net LONG euro)
+JPY net speculative position:  +12,955 contracts (net LONG yen)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 2 -- WHAT THE DATA PREDICTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The US-DE spread has narrowed by 1.04pp over 12 months -- from roughly 1.66%
+to 0.62% today. The US yield advantage over Germany has compressed significantly.
+Rate differential logic predicts: less incentive to hold dollars over euros,
+capital flows back toward euros, EUR/USD should have risen.
+
+EUR speculative positioning is net long 174,480 contracts -- heavily crowded.
+This suggests the rate differential story is now consensus. When positioning
+is this one-sided, the easy move is likely already priced in.
+
+The US-JP spread has narrowed by 1.51pp over 12 months -- from roughly 2.70%
+to 1.19% today. Japan has been hiking while US yields have fallen.
+Rate differential logic predicts: USD/JPY should have fallen.
+
+JPY speculative positioning is net long 12,955 contracts -- speculators are
+now betting on yen strength, not weakness. The yen carry trade shorts that
+existed through 2024 have fully unwound and flipped to a net long position.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 3 -- WHAT ACTUALLY HAPPENED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+EUR/USD -- PREDICTION CONFIRMED, BUT CROWDING IS A WARNING
+
+EUR/USD rose +12.21% over 12 months. The US-DE spread narrowed 1.04pp over
+the same period. Direction matches rate differential logic exactly -- as the
+US yield advantage over Germany compressed, the incentive to hold dollars
+weakened and EUR/USD appreciated.
+
+The DXY falling 8.80% confirms this was broad dollar weakness, not just
+euro strength. The spread compression story holds for direction.
+
+However: the 174,480 net long EUR positioning is a warning signal. The move
+is now crowded consensus. Speculative longs at this scale mean a lot of
+buyers are already in the trade. Any negative surprise on ECB policy or
+European growth could trigger a sharp unwind of these positions.
+
+One anomaly: at least one period visible on the chart where EUR/USD dipped
+despite stable spreads. Driver unknown -- could be risk-off, positioning
+squeezes, or a policy statement. Flagged for future investigation.
+
+USD/JPY -- RATE DIFFERENTIAL PREDICTION NOT CONFIRMED, CARRY HYPOTHESIS UPDATED
+
+USD/JPY rose +4.25% over 12 months despite the spread narrowing 1.51pp.
+Rate differential logic predicted the opposite.
+
+The historical explanation: carry trade dynamics kept USD/JPY elevated through
+2024 despite narrowing spreads. Funds borrowed cheap yen at near-zero rates
+and invested in higher-yielding dollar assets, creating persistent yen selling
+pressure beyond what the spread justified.
+
+However, the COT data shows this carry trade has fully unwound. JPY positioning
+has flipped from crowded short (the 2024 extreme) to net long 12,955 contracts
+today. The BoJ hiking from near-zero to 2.24% made yen borrowing expensive
+enough to close the carry trade, not just reduce it.
+
+The partial pullback from 158 to 155 visible on the chart is consistent with
+this unwind. USD/JPY did not collapse entirely because the BoJ is moving
+gradually -- pausing at 0.75% overnight rate -- not aggressively hiking.
+
+Current USD/JPY is being driven by BoJ rate expectations and risk sentiment,
+not carry crowding. The carry risk is resolved for now.
+
+Short-term note: this week USD/JPY rose +1.53% while EUR/USD fell -0.84%
+and DXY gained +0.95%. Broad dollar strength in one week. Spreads barely
+moved. Short-term driver is not rate differentials -- likely risk sentiment
+or positioning flows. Cannot identify specific catalyst without news context.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 4 -- WHAT I CANNOT EXPLAIN YET
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. This week dollar strengthened broadly (DXY +0.95%) but spreads barely
+   moved -- short-term driver unknown, not rate differentials
+
+2. One EUR/USD dip visible on chart not explained by spread movement --
+   specific date and driver not yet identified
+
+3. DE and JP yields are monthly from FRED, not daily -- spread calculations
+   between monthly updates carry stale yield data, known limitation
+
+4. EUR net long positioning at 174,480 is crowded but no historical percentile
+   context yet -- need to pull historical COT data to know if this is
+   an extreme or just elevated. Will build automated COT pipeline next.
+
+5. BoJ held overnight rate at 0.75% in latest statement with "remain" language
+   -- no forward guidance on next move. Unclear if another hike is coming
+   in 3-6 months, which would determine whether USD/JPY continues falling.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 5 -- WHAT I WILL DO NEXT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Build automated COT pipeline -- pull CFTC data weekly, add to master CSV
+   alongside rate differentials. Calculate rolling percentile of net position
+   to identify when positioning is at historical extremes.
+
+2. Key question for EUR: is 174,480 net long a historical extreme? If yes,
+   EUR/USD upside may be limited from here regardless of spread direction.
+
+3. Key question for JPY: now that carry is unwound, what drives USD/JPY next?
+   Track BoJ statements for forward guidance on rate path. If BoJ signals
+   another hike, USD/JPY likely falls further as spread narrows more.
+
+4. Start tracking the specific date of the EUR/USD dip anomaly and identify
+   what event or data release caused it.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CONFIDENCE: Medium
+REASON: EUR/USD rate differential story confirmed. COT shows crowded long
+-- upside risk from here is limited. USD/JPY carry hypothesis confirmed
+historically via COT, but current drivers are BoJ policy and risk sentiment,
+not carry. Short-term dollar strength this week remains unexplained.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
