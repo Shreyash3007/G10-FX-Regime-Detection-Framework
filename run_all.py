@@ -11,7 +11,9 @@ subprocess.run([sys.executable, "cot_pipeline.py"],    check=True)
 subprocess.run([sys.executable, "create_dashboards.py"], check=True)
 subprocess.run([sys.executable, "morning_brief.py"],   check=True)
 subprocess.run([sys.executable, "create_html_brief.py"], check=True)
-print("\ndone. check /charts for today's dashboards.")
+subprocess.run([sys.executable, "deploy.py"],           check=True)
+print("\ndone. brief is live at:")
+print("https://shreyash3007.github.io/G10-FX-Regime-Detection-Framework/")
 
 # --- archive run outputs into daily folder ---
 TODAY = datetime.today().strftime('%Y-%m-%d')
