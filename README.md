@@ -163,6 +163,34 @@ always available as data/latest_with_cot.csv.
 
 ---
 
+## Daily Run Archive
+Each execution of `run_all.py` now archives outputs under a date-stamped
+directory to keep historical results tidy. The structure for a run on
+2026‑02‑26 looks like:
+
+```
+runs/
+└── 2026-02-26/
+    ├── charts/
+    │   ├── eurusd_fundamentals.png
+    │   ├── eurusd_positioning.png
+    │   ├── usdjpy_fundamentals.png
+    │   └── usdjpy_positioning.png
+    ├── data/
+    │   ├── master.csv            # copy of data/master_YYYYMMDD.csv
+    │   ├── cot.csv               # copy of latest COT snapshot
+    │   └── master_with_cot.csv   # merged master dataset
+    └── brief.txt                # today's morning brief
+```
+
+Charts and data continue to be written to `charts/`, `data/`, and
+`briefs/` as before; the archive step simply copies today's outputs into
+the `runs/` tree and strips date suffixes from the filenames. The
+`runs/` folder is ignored by Git.
+
+
+---
+
 ## Design Choices and Known Limitations
 
 **Why US 2Y not US 10Y for spreads:**

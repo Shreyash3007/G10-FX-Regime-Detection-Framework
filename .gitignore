@@ -1,3 +1,13 @@
 .env
 data/
 __pycache__/
+runs/
+briefs/
+charts/*_fundamentals_*.png
+charts/*_positioning_*.png
+charts/*_volatility_*.png
+charts/fx_regime_dashboard_*.png
+brief_screenshot.png
+tmpclaude-*
+show_b64.py
+screenshot.py

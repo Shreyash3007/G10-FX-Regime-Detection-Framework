@@ -25,6 +25,13 @@ import pandas as pd
 from io import BytesIO
 from datetime import datetime
 
+
+def ordinal(n):
+    n = int(n)
+    if 11 <= (n % 100) <= 13:
+        return f"{n}th"
+    return f"{n}{['th','st','nd','rd','th','th','th','th','th','th'][n % 10]}"
+
 TODAY      = datetime.today().strftime('%Y-%m-%d')
 CURRENT_YR = datetime.today().year
 
@@ -48,9 +55,6 @@ COLS_NEEDED = [
     # Asset Manager / Institutional
     "Asset_Mgr_Positions_Long_All",
     "Asset_Mgr_Positions_Short_All",
-    # NonCommercial (as proxy: total report positions not commercial)
-    "Tot_Rept_Positions_Long_All",
-    "Tot_Rept_Positions_Short_All",
     "Open_Interest_All",              # total open interest for normalization
 ]
 
@@ -113,7 +117,7 @@ def fetch_all_cot():
 
 # -- step 3: calculate net positioning and percentiles -------------------------
 #
-# THREE CATEGORIES per pair:
+# TWO CATEGORIES per pair:
 #
 # 1. LEVERAGED MONEY (hedge funds, CTAs - macro traders)
 #    net position = leveraged money longs minus shorts
@@ -125,10 +129,9 @@ def fetch_all_cot():
 #    positive = institutions net long (mechanical hedging or structural longs)
 #    negative = institutions net short (rare for long-only accounts)
 #
-# 3. NONCOMMERCIAL (larger speculators, excluding commercials)
-#    net position = total report longs minus shorts (proxy since direct NC may vary)
-#    positive = speculators net long
-#    negative = speculators net short
+# NonCommercial is not used; it does not exist in the disaggregated report.
+# The framework relies solely on Leveraged Money for the primary signal and
+# Asset Manager for confirmation.
 #
 # For each category:
 #   net % of open interest = net position / total open interest * 100
@@ -155,8 +158,6 @@ def calculate_positioning(raw_df):
             "Lev_Money_Positions_Short_All",
             "Asset_Mgr_Positions_Long_All",
             "Asset_Mgr_Positions_Short_All",
-            "Tot_Rept_Positions_Long_All",
-            "Tot_Rept_Positions_Short_All",
             "Open_Interest_All"
         ]
         for col in all_cols:
@@ -190,19 +191,8 @@ def calculate_positioning(raw_df):
         )
         df["assetmgr_percentile"] = df["assetmgr_net"].rank(pct=True) * 100
 
-        # ──────────────────────────────────────────────────────────────────────
-        # CATEGORY 3: NONCOMMERCIAL (proxy: total report positions)
-        # ──────────────────────────────────────────────────────────────────────
-        df["noncom_net"] = (
-            df["Tot_Rept_Positions_Long_All"] -
-            df["Tot_Rept_Positions_Short_All"]
-        )
-        df["noncom_pct_oi"] = (
-            df["noncom_net"] / df["Open_Interest_All"] * 100
-        )
-        df["noncom_percentile"] = df["noncom_net"].rank(pct=True) * 100
 
-        # Keep all three categories in results
+        # Keep leveraged money + asset manager in results
         results[ticker] = df[[
             # Leveraged Money
             "lev_net",
@@ -216,27 +206,19 @@ def calculate_positioning(raw_df):
             "assetmgr_percentile",
             "Asset_Mgr_Positions_Long_All",
             "Asset_Mgr_Positions_Short_All",
-            # NonCommercial
-            "noncom_net",
-            "noncom_pct_oi",
-            "noncom_percentile",
-            "Tot_Rept_Positions_Long_All",
-            "Tot_Rept_Positions_Short_All",
         ]].copy()
 
         # Print summary for each ticker
         latest    = df.iloc[-1]
         lev_dir   = "LONG" if latest["lev_net"] > 0 else "SHORT"
         am_dir    = "LONG" if latest["assetmgr_net"] > 0 else "SHORT"
-        nc_dir    = "LONG" if latest["noncom_net"] > 0 else "SHORT"
         lev_p     = latest["lev_percentile"]
         am_p      = latest["assetmgr_percentile"]
-        nc_p      = latest["noncom_percentile"]
 
         print(f"\n    {ticker}:")
         print(f"      Leveraged Money:")
         print(f"        net : {latest['lev_net']:>+,.0f} contracts ({lev_dir})")
-        print(f"        % OI: {latest['lev_pct_oi']:>+.1f}%  |  percentile: {lev_p:.0f}th")
+        print(f"        % OI: {latest['lev_pct_oi']:>+.1f}%  |  percentile: {ordinal(lev_p)}")
         print(f"        regime: ", end="")
         if lev_p >= 80:
             print("CROWDED LONG")
@@ -247,22 +229,11 @@ def calculate_positioning(raw_df):
 
         print(f"      Asset Manager:")
         print(f"        net : {latest['assetmgr_net']:>+,.0f} contracts ({am_dir})")
-        print(f"        % OI: {latest['assetmgr_pct_oi']:>+.1f}%  |  percentile: {am_p:.0f}th")
+        print(f"        % OI: {latest['assetmgr_pct_oi']:>+.1f}%  |  percentile: {ordinal(am_p)}")
         print(f"        regime: ", end="")
         if am_p >= 80:
             print("CROWDED LONG")
         elif am_p <= 20:
-            print("CROWDED SHORT")
-        else:
-            print("NEUTRAL")
-
-        print(f"      NonCommercial:")
-        print(f"        net : {latest['noncom_net']:>+,.0f} contracts ({nc_dir})")
-        print(f"        % OI: {latest['noncom_pct_oi']:>+.1f}%  |  percentile: {nc_p:.0f}th")
-        print(f"        regime: ", end="")
-        if nc_p >= 80:
-            print("CROWDED LONG")
-        elif nc_p <= 20:
             print("CROWDED SHORT")
         else:
             print("NEUTRAL")
@@ -288,17 +259,11 @@ def save_cot(positioning_dict):
             "assetmgr_net":                           f"{ticker}_assetmgr_net",
             "assetmgr_pct_oi":                        f"{ticker}_assetmgr_pct_oi",
             "assetmgr_percentile":                    f"{ticker}_assetmgr_percentile",
-            # NonCommercial -- new names
-            "noncom_net":                             f"{ticker}_noncom_net",
-            "noncom_pct_oi":                          f"{ticker}_noncom_pct_oi",
-            "noncom_percentile":                      f"{ticker}_noncom_percentile",
             # Raw position columns (informational)
             "Lev_Money_Positions_Long_All":           f"{ticker}_lev_long",
             "Lev_Money_Positions_Short_All":          f"{ticker}_lev_short",
             "Asset_Mgr_Positions_Long_All":           f"{ticker}_assetmgr_long",
             "Asset_Mgr_Positions_Short_All":          f"{ticker}_assetmgr_short",
-            "Tot_Rept_Positions_Long_All":            f"{ticker}_noncom_long",
-            "Tot_Rept_Positions_Short_All":           f"{ticker}_noncom_short",
         })
 
         # BACKWARD COMPATIBILITY: Add old column names (duplicate data)
@@ -380,16 +345,16 @@ def main():
         elif p <= 20:
             regime = "CROWDED SHORT -- squeeze risk if catalyst appears"
         elif net > 0:
-            regime = f"MODERATELY LONG ({p:.0f}th pct) -- no crowding signal"
+            regime = f"MODERATELY LONG ({ordinal(p)} pct) -- no crowding signal"
         elif net < 0:
-            regime = f"MODERATELY SHORT ({p:.0f}th pct) -- no crowding signal"
+            regime = f"MODERATELY SHORT ({ordinal(p)} pct) -- no crowding signal"
         else:
             regime = "NEUTRAL"
 
         print(f"\n  {ticker} (as of {latest_date}):")
         print(f"    net position : {net:>+,.0f} contracts ({direction})")
         print(f"    % of OI      : {latest['lev_pct_oi']:>+.1f}%")
-        print(f"    percentile   : {p:.0f}th (vs last {HISTORY_YEARS} years)")
+        print(f"    percentile   : {ordinal(p)} (vs last {HISTORY_YEARS} years)")
         print(f"    regime       : {regime}")
 
     print("\n" + "=" * 62)

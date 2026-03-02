@@ -63,6 +63,22 @@ def ordinal(n):
     return f"{n}{suffix}"
 
 
+def _parse_key_levels(value):
+    """Parse key level from text format like '1.2345 (5)' -> (1.2345, 5)."""
+    if pd.isna(value) or value == "" or value == "—":
+        return None
+    try:
+        # Extract price and touch count from "1.2345 (5)"
+        parts = str(value).split()
+        if len(parts) >= 1:
+            price = float(parts[0])
+            touches = int(parts[1].strip('()')) if len(parts) > 1 else 1
+            return (price, touches)
+    except Exception:
+        pass
+    return None
+
+
 def _positioning_panel(ax, pct_series, net_series, label, color_line):
     """Build a single percentile/net panel per specification."""
     ax.set_facecolor(AXIS_BG)
@@ -135,7 +151,7 @@ def _positioning_panel(ax, pct_series, net_series, label, color_line):
 
 
 def create_fundamentals_chart(df, config):
-    """Price + spreads chart"""
+    """Price + spreads + regime correlation chart"""
     print(f"creating fundamentals chart for {config['name']}")
 
     # enforce common start date slice
@@ -143,8 +159,8 @@ def create_fundamentals_chart(df, config):
     x_min = d.index[0]
     x_max = d.index[-1]
 
-    fig, axes = plt.subplots(2, 1, figsize=(14, 9),
-                             gridspec_kw={'height_ratios': [1, 1]},
+    fig, axes = plt.subplots(3, 1, figsize=(14, 12),
+                             gridspec_kw={'height_ratios': [1.2, 1, 1]},
                              facecolor=FIG_BG)
     fig.suptitle(f"{config['name']} — Fundamentals — {TODAY}",
                  fontsize=13, fontweight='bold', y=0.98)
@@ -181,6 +197,32 @@ def create_fundamentals_chart(df, config):
     ax.legend(fontsize=8, loc='lower right')
     ax.set_xlim(x_min, x_max)
 
+    # Add key levels to price panel
+    pair = config.get('pair', 'EURUSD')  # EUR or JPY in the pair column names
+    last_row = df.iloc[-1]
+    
+    # Support levels (green, dashed)
+    for i in range(1, 4):
+        s_col = f"{pair}_S{i}"
+        if s_col in df.columns:
+            level_data = _parse_key_levels(last_row.get(s_col))
+            if level_data:
+                price, touches = level_data
+                ax.axhline(y=price, color='#27ae60', linestyle='--', linewidth=1.0, alpha=0.6)
+                ax.text(x_max, price, f"  S{i}: {price:.4f}({touches})",
+                       fontsize=7, va='center', color='#27ae60', alpha=0.8)
+    
+    # Resistance levels (red, dashed)
+    for i in range(1, 4):
+        r_col = f"{pair}_R{i}"
+        if r_col in df.columns:
+            level_data = _parse_key_levels(last_row.get(r_col))
+            if level_data:
+                price, touches = level_data
+                ax.axhline(y=price, color='#e74c3c', linestyle='--', linewidth=1.0, alpha=0.6)
+                ax.text(x_max, price, f"  R{i}: {price:.4f}({touches})",
+                       fontsize=7, va='center', color='#e74c3c', alpha=0.8)
+
     # Panel 2: spreads
     ax = axes[1]
     _style_ax_basic(ax)
@@ -199,6 +241,48 @@ def create_fundamentals_chart(df, config):
     ax.tick_params(axis='x', rotation=30)
     ax.legend(fontsize=8, loc='best')
     ax.set_xlim(x_min, x_max)
+
+    # Panel 3: regime correlation
+    ax = axes[2]
+    _style_ax_basic(ax)
+    
+    corr_col = config['corr_col']
+    if corr_col in d.columns:
+        corr_series = d[corr_col].dropna()
+        ax.plot(corr_series.index, corr_series, color='#1a1a2e', linewidth=1.8,
+                label='60D rolling correlation')
+        
+        # threshold lines
+        ax.axhline(y=0.6, color=THRESH_GREEN, linestyle='--', linewidth=1.3, alpha=0.8,
+                   label='0.60 (INTACT)')
+        ax.axhline(y=0.3, color=THRESH_RED, linestyle='--', linewidth=1.3, alpha=0.8,
+                   label='0.30 (BROKEN)')
+        ax.axhline(y=0, color=ZERO_LINE_CLR, linewidth=1.0, linestyle='-', alpha=0.5)
+        
+        # zone shading
+        ax.fill_between(corr_series.index, 0.6, 1.0, color=THRESH_GREEN, alpha=0.08)
+        ax.fill_between(corr_series.index, 0.3, 0.6, color='#f39c12', alpha=0.06)
+        ax.fill_between(corr_series.index, -1.0, 0.3, color=THRESH_RED, alpha=0.08)
+        
+        # annotation at end
+        latest_corr = corr_series.iloc[-1]
+        ax.annotate(f"{latest_corr:+.3f}", xy=(corr_series.index[-1], latest_corr),
+                    xytext=(-10, 0), textcoords='offset points',
+                    fontsize=10, fontweight='bold', ha='right', va='center',
+                    color='#1a1a2e')
+        
+        ax.set_ylim(-1, 1)
+        ax.set_title(f"Regime Correlation (60D rolling | spread vs {config['price_label']} move)",
+                     fontsize=SUBTITLE_SIZE, color=SUBTITLE_COLOR)
+        ax.set_ylabel('correlation')
+        ax.xaxis.set_major_formatter(fmt)
+        ax.tick_params(axis='x', rotation=30)
+        ax.legend(fontsize=8, loc='best')
+        ax.set_xlim(x_min, x_max)
+    else:
+        ax.text(0.5, 0.5, 'Correlation data not available',
+                transform=ax.transAxes, fontsize=11, ha='center', va='center',
+                color='#888888')
 
     plt.tight_layout(pad=2.0, h_pad=2.5)
     os.makedirs('charts', exist_ok=True)
@@ -419,6 +503,8 @@ def main():
         'spread_10y_label': 'US 2Y - DE 10Y (cross)',
         'spread_2y_label': 'US 2Y - DE 2Y (same)',
         'spread_desc': 'narrowing = EUR/USD should rise',
+        'corr_col': 'EURUSD_spread_corr_60d',
+        'pair': 'EURUSD',
         'lev_pct_col': 'EUR_percentile',
         'lev_net_col': 'EUR_net_pos',
         'assetmgr_pct_col': 'EUR_assetmgr_percentile',
@@ -441,6 +527,8 @@ def main():
         'spread_10y_label': 'US 2Y - JP 10Y (cross)',
         'spread_2y_label': 'US 2Y - JP 2Y (same)',
         'spread_desc': 'narrowing = USD/JPY should fall',
+        'corr_col': 'USDJPY_spread_corr_60d',
+        'pair': 'USDJPY',
         'lev_pct_col': 'JPY_percentile',
         'lev_net_col': 'JPY_net_pos',
         'assetmgr_pct_col': 'JPY_assetmgr_percentile',

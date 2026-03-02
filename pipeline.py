@@ -78,12 +78,11 @@ def fetch_fx_data():
         prices.index = prices.index.tz_localize('UTC')
     # 2. convert to New York time
     prices.index = prices.index.tz_convert('America/New_York')
-    # 3. drop tz info to keep a naive index representing NY close dates
-    prices.index = prices.index.tz_localize(None)
+    # 3. convert to plain date-only index (no timezone, no time component)
+    prices.index = pd.to_datetime(prices.index.date)
 
-    # strip today's (potentially incomplete) candle -- only keep fully
-    # completed NY close bars when computing changes later
     prices = prices[prices.index.date < pd.Timestamp(TODAY).date()]
+    prices = prices[prices.index.dayofweek < 5]
 
     # DXY trades on ICE with different holidays -- fill gaps up to 5 days
     if "DXY" in prices.columns:
@@ -333,6 +332,205 @@ def calculate_volatility(master):
     return master
 
 
+# -- step 3.6: regime correlation ----------------------------------------------
+
+def calculate_regime_correlation(master):
+    print("\n[CORR] calculating regime correlation...")
+
+    master = master.copy()
+
+    # EUR/USD: correlation between US_DE_10Y_spread daily change and EURUSD daily % change
+    if "US_DE_10Y_spread" in master.columns and "EURUSD" in master.columns:
+        # daily change in spread (pp)
+        spread_chg = master["US_DE_10Y_spread"].diff()
+        # daily % change in FX price
+        fx_ret = master["EURUSD"].pct_change() * 100
+        
+        # 60-day rolling Pearson correlation
+        corr_series = spread_chg.rolling(window=60).corr(fx_ret)
+        master["EURUSD_spread_corr_60d"] = corr_series
+        
+        # 3-year percentile
+        window_3y = 252 * 3
+        master["EURUSD_corr_percentile"] = (
+            corr_series
+            .rolling(window=window_3y, min_periods=126)
+            .rank(pct=True) * 100
+        )
+
+    # USD/JPY: correlation between US_JP_10Y_spread daily change and USDJPY daily % change
+    if "US_JP_10Y_spread" in master.columns and "USDJPY" in master.columns:
+        # daily change in spread (pp)
+        spread_chg = master["US_JP_10Y_spread"].diff()
+        # daily % change in FX price
+        fx_ret = master["USDJPY"].pct_change() * 100
+        
+        # 60-day rolling Pearson correlation
+        corr_series = spread_chg.rolling(window=60).corr(fx_ret)
+        master["USDJPY_spread_corr_60d"] = corr_series
+        
+        # 3-year percentile
+        window_3y = 252 * 3
+        master["USDJPY_corr_percentile"] = (
+            corr_series
+            .rolling(window=window_3y, min_periods=126)
+            .rank(pct=True) * 100
+        )
+
+    # print summary
+    for pair, col in [("EURUSD", "EURUSD_spread_corr_60d"), ("USDJPY", "USDJPY_spread_corr_60d")]:
+        if col not in master.columns:
+            continue
+        c = master[col].dropna().iloc[-1]
+        print(f"    {pair}: {c:>+.3f} correlation")
+
+    return master
+
+
+# -- step 3.7: key support and resistance levels --------------------------------
+
+def calculate_key_levels(master):
+    print("\n[LEVELS] calculating key support/resistance levels...")
+
+    master = master.copy()
+
+    for pair, price_col in [("EURUSD", "EURUSD"), ("USDJPY", "USDJPY")]:
+        if price_col not in master.columns:
+            continue
+
+        # Use last 180 trading days
+        price_series = master[price_col].copy()
+        recent_prices = price_series.iloc[-180:] if len(price_series) >= 180 else price_series
+        
+        if len(recent_prices) < 11:  # Need at least 11 candles (5 before, 1 current, 5 after)
+            # Create empty columns
+            for i in range(1, 4):
+                if f"{pair}_S{i}" not in master.columns:
+                    master[f"{pair}_S{i}"] = ""
+                if f"{pair}_R{i}" not in master.columns:
+                    master[f"{pair}_R{i}"] = ""
+            continue
+
+        # Find local highs and lows
+        local_highs = []
+        local_lows = []
+        
+        for i in range(5, len(recent_prices) - 5):
+            price = recent_prices.iloc[i]
+            before = recent_prices.iloc[max(0, i-5):i]
+            after = recent_prices.iloc[i+1:min(len(recent_prices), i+6)]
+            
+            # Local high: higher than all 5 before and after
+            if (price > before.max()) and (price > after.max()):
+                local_highs.append(price)
+            
+            # Local low: lower than all 5 before and after
+            if (price < before.min()) and (price < after.min()):
+                local_lows.append(price)
+        
+        # Group nearby levels within 0.3% tolerance
+        def group_levels(levels):
+            if not levels:
+                return []
+            
+            levels_sorted = sorted(levels)
+            groups = []
+            current_group = [levels_sorted[0]]
+            
+            for level in levels_sorted[1:]:
+                tolerance = current_group[0] * 0.003  # 0.3%
+                
+                if abs(level - current_group[0]) <= tolerance:
+                    current_group.append(level)
+                else:
+                    groups.append(current_group)
+                    current_group = [level]
+            
+            if current_group:
+                groups.append(current_group)
+            
+            return groups
+        
+        highs_grouped = group_levels(local_highs)
+        lows_grouped = group_levels(local_lows)
+        
+        # Create level list with average price and touch count
+        all_levels = []
+        
+        for group in highs_grouped:
+            avg_price = np.mean(group)
+            touch_count = len(group)
+            # Only include levels with at least 2 touches (lowered from 3)
+            if touch_count >= 2:
+                all_levels.append({
+                    'price': avg_price,
+                    'touches': touch_count,
+                    'is_resistance': True
+                })
+        
+        for group in lows_grouped:
+            avg_price = np.mean(group)
+            touch_count = len(group)
+            # Only include levels with at least 2 touches (lowered from 3)
+            if touch_count >= 2:
+                all_levels.append({
+                    'price': avg_price,
+                    'touches': touch_count,
+                    'is_resistance': False
+                })
+        
+        # Get current price
+        current_price = price_series.iloc[-1]
+        
+        # Filter into support (below) and resistance (above)
+        support_levels = [l for l in all_levels if l['price'] < current_price]
+        resistance_levels = [l for l in all_levels if l['price'] > current_price]
+        
+        # Sort support by distance (nearest first) then by touches
+        support_levels.sort(key=lambda x: (current_price - x['price'], -x['touches']))
+        support_levels = support_levels[:3]
+        
+        # Sort resistance by distance (nearest first) then by touches
+        resistance_levels.sort(key=lambda x: (x['price'] - current_price, -x['touches']))
+        resistance_levels = resistance_levels[:3]
+        
+        # Store in columns - initialize if needed
+        for i in range(1, 4):
+            s_col = f"{pair}_S{i}"
+            r_col = f"{pair}_R{i}"
+            if s_col not in master.columns:
+                master[s_col] = ""
+            if r_col not in master.columns:
+                master[r_col] = ""
+        
+        # Fill last row with current key levels
+        # Fill with range descriptors if fewer than 3 levels found
+        for i in range(1, 4):
+            s_col = f"{pair}_S{i}"
+            r_col = f"{pair}_R{i}"
+            
+            if i <= len(support_levels):
+                s_value = support_levels[i-1]
+                master.at[master.index[-1], s_col] = f"{s_value['price']:.4f} ({s_value['touches']})"
+            else:
+                # Fill remaining support slots with range descriptor
+                master.at[master.index[-1], s_col] = "below 12M range"
+            
+            if i <= len(resistance_levels):
+                r_value = resistance_levels[i-1]
+                master.at[master.index[-1], r_col] = f"{r_value['price']:.4f} ({r_value['touches']})"
+            else:
+                # Fill remaining resistance slots with range descriptor
+                master.at[master.index[-1], r_col] = "above 12M range"
+        
+        # Print summary
+        support_str = " | ".join([f"S{i}: {l['price']:.4f}({l['touches']})" for i, l in enumerate(support_levels, 1)])
+        resistance_str = " | ".join([f"R{i}: {l['price']:.4f}({l['touches']})" for i, l in enumerate(resistance_levels, 1)])
+        print(f"    {pair}: {support_str} | {resistance_str}")
+
+    return master
+
+
 # -- step 4: build master table ------------------------------------------------
 
 def build_master(fx_df, yields_df, diff_df):
@@ -520,6 +718,8 @@ def main():
     diff_df   = calculate_differentials(yields_df)
     master    = build_master(fx_df, yields_df, diff_df)
     master    = calculate_volatility(master)
+    master    = calculate_regime_correlation(master)
+    master    = calculate_key_levels(master)
     master    = calculate_changes(master)
 
     save_data(master)
