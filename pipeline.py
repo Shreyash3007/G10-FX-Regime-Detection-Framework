@@ -214,20 +214,24 @@ def fetch_all_yields():
     yields_df.index = pd.to_datetime(yields_df.index)
     yields_df.index.name = "date"
 
+    # ensure all expected series exist (fill absent ones with NaN so
+    # downstream code doesn’t blow up with KeyError)
+    for col in ["US_2Y", "US_10Y", "DE_2Y", "DE_10Y", "JP_2Y", "JP_10Y"]:
+        if col not in yields_df.columns:
+            yields_df[col] = np.nan
+            print(f"    WARNING -- missing series {col}, filling with NaNs")
+
     # US yields: fill weekends and holidays (max 5 days)
     for col in ["US_2Y", "US_10Y"]:
-        if col in yields_df.columns:
-            yields_df[col] = yields_df[col].ffill(limit=5)
+        yields_df[col] = yields_df[col].ffill(limit=5)
 
     # DE yields (ECB): fill weekends and holidays (max 5 days)
     for col in ["DE_2Y", "DE_10Y"]:
-        if col in yields_df.columns:
-            yields_df[col] = yields_df[col].ffill(limit=5)
+        yields_df[col] = yields_df[col].ffill(limit=5)
 
     # JP yields (MOF): fill weekends and holidays (max 5 days)
     for col in ["JP_2Y", "JP_10Y"]:
-        if col in yields_df.columns:
-            yields_df[col] = yields_df[col].ffill(limit=5)
+        yields_df[col] = yields_df[col].ffill(limit=5)
 
     return yields_df
 
@@ -244,22 +248,30 @@ def calculate_differentials(yields_df):
 
     diff = pd.DataFrame(index=yields_df.index)
 
+    # helper that returns series or NaNs if either input is missing
+    def _spread(a, b):
+        if a not in yields_df.columns or b not in yields_df.columns:
+            missing = [x for x in (a, b) if x not in yields_df.columns]
+            print(f"    WARNING -- cannot compute spread {a}-{b}, missing {missing}")
+            return pd.Series(index=yields_df.index, dtype=float)
+        return yields_df[a] - yields_df[b]
+
     # US 2Y minus Germany 10Y -- main cross-maturity driver of EUR/USD
-    diff["US_DE_10Y_spread"] = yields_df["US_2Y"] - yields_df["DE_10Y"]
+    diff["US_DE_10Y_spread"] = _spread("US_2Y", "DE_10Y")
 
     # US 2Y minus Germany 2Y -- same-maturity driver of EUR/USD
-    diff["US_DE_2Y_spread"] = yields_df["US_2Y"] - yields_df["DE_2Y"]
+    diff["US_DE_2Y_spread"] = _spread("US_2Y", "DE_2Y")
 
     # US 2Y minus Japan 10Y -- main cross-maturity driver of USD/JPY
-    diff["US_JP_10Y_spread"] = yields_df["US_2Y"] - yields_df["JP_10Y"]
+    diff["US_JP_10Y_spread"] = _spread("US_2Y", "JP_10Y")
 
     # US 2Y minus Japan 2Y -- same-maturity driver of USD/JPY
-    diff["US_JP_2Y_spread"] = yields_df["US_2Y"] - yields_df["JP_2Y"]
+    diff["US_JP_2Y_spread"] = _spread("US_2Y", "JP_2Y")
 
     # US yield curve: 10Y minus 2Y
     # positive = normal (longer duration pays more)
     # negative = inverted (recession signal historically)
-    diff["US_curve"] = yields_df["US_10Y"] - yields_df["US_2Y"]
+    diff["US_curve"] = _spread("US_10Y", "US_2Y")
 
     for col in diff.columns:
         clean = diff[col].dropna()
@@ -269,6 +281,43 @@ def calculate_differentials(yields_df):
             print(f"    {col:<22} : no data")
 
     return diff
+
+
+# -- step 3.5: volatility ------------------------------------------------------
+
+def calculate_volatility(master):
+    print("\n[VOL] calculating realized volatility...")
+
+    for pair in ["EURUSD", "USDJPY"]:
+        if pair not in master.columns:
+            continue
+        log_ret = np.log(master[pair] / master[pair].shift(1))
+        master[f"{pair}_vol30"] = (
+            log_ret.rolling(window=30).std() * np.sqrt(252) * 100
+        )
+
+    window_3y = 252 * 3
+    for pair in ["EURUSD", "USDJPY"]:
+        col = f"{pair}_vol30"
+        if col not in master.columns:
+            continue
+        master[f"{pair}_vol_pct"] = (
+            master[col]
+            .rolling(window=window_3y, min_periods=126)
+            .rank(pct=True) * 100
+        )
+
+    for pair in ["EURUSD", "USDJPY"]:
+        col     = f"{pair}_vol30"
+        pct_col = f"{pair}_vol_pct"
+        if col not in master.columns:
+            continue
+        v = master[col].dropna().iloc[-1]
+        p = master[pct_col].dropna().iloc[-1]
+        flag = "EXTREME" if p >= 90 else ("ELEVATED" if p >= 75 else "NORMAL")
+        print(f"    {pair}: {v:.1f}% annualized | {p:.0f}th pct | {flag}")
+
+    return master
 
 
 # -- step 4: build master table ------------------------------------------------
@@ -287,6 +336,9 @@ def build_master(fx_df, yields_df, diff_df):
 
     # drop rows where core FX data is missing
     master = master[master["EURUSD"].notna()]
+
+    # ensure no weekend rows sneak in (e.g. from filled yields)
+    master = master[master.index.dayofweek < 5]
 
     missing = master.isnull().sum()
     if missing.sum() > 0:
@@ -454,6 +506,7 @@ def main():
     yields_df = fetch_all_yields()
     diff_df   = calculate_differentials(yields_df)
     master    = build_master(fx_df, yields_df, diff_df)
+    master    = calculate_volatility(master)
     master    = calculate_changes(master)
 
     save_data(master)
