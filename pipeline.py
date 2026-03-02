@@ -586,6 +586,16 @@ def calculate_changes(master):
                 (master[pair] / master[pair].shift(days) - 1) * 100
             )
 
+    # USD/INR changes -- added by inr_pipeline.py, calculated here if present
+    if "USDINR" in master.columns:
+        for label, days in periods.items():
+            master[f"USDINR_chg_{label}"] = (
+                (master["USDINR"] / master["USDINR"].shift(days) - 1) * 100
+            )
+        print("    USDINR change columns added")
+    else:
+        print("    USDINR not in master -- run inr_pipeline.py first")
+
     # yield and spread pp changes
     pp_cols = [
         "US_2Y", "US_10Y", "DE_2Y", "DE_10Y", "JP_2Y", "JP_10Y",
@@ -635,7 +645,7 @@ def print_morning_summary(master):
           f"{'1M%':>7}  {'3M%':>7}  {'12M%':>7}")
     print(f"  {'-'*66}")
 
-    for pair in ["EURUSD", "USDJPY", "DXY"]:
+    for pair in ["EURUSD", "USDJPY", "DXY", "USDINR"]:
         if pair not in latest.index:
             continue
         price = latest[pair]

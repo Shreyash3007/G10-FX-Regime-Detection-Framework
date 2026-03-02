@@ -38,6 +38,15 @@ def deploy():
     # git add, commit, push
     try:
         subprocess.run(["git", "add", "index.html"], check=True)
+        # check if there is actually anything staged to commit
+        status = subprocess.run(
+            ["git", "status", "--porcelain"],
+            capture_output=True, text=True, check=True
+        )
+        if not status.stdout.strip():
+            print("index.html unchanged -- nothing to commit, skipping push")
+            print(f"live at: https://shreyash3007.github.io/G10-FX-Regime-Detection-Framework/")
+            return
         subprocess.run(["git", "commit", "-m",
                        f"brief update {TODAY} {datetime.now().strftime('%H:%M')} IST"],
                       check=True)
