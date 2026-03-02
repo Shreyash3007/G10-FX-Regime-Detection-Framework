@@ -72,6 +72,19 @@ def fetch_fx_data():
     prices.index = pd.to_datetime(prices.index)
     prices.index.name = "date"
 
+    # align FX data to New York close convention (global FX standard)
+    # 1. ensure the index is timezone-aware by localizing to UTC if naive
+    if prices.index.tz is None:
+        prices.index = prices.index.tz_localize('UTC')
+    # 2. convert to New York time
+    prices.index = prices.index.tz_convert('America/New_York')
+    # 3. drop tz info to keep a naive index representing NY close dates
+    prices.index = prices.index.tz_localize(None)
+
+    # strip today's (potentially incomplete) candle -- only keep fully
+    # completed NY close bars when computing changes later
+    prices = prices[prices.index.date < pd.Timestamp(TODAY).date()]
+
     # DXY trades on ICE with different holidays -- fill gaps up to 5 days
     if "DXY" in prices.columns:
         prices["DXY"] = prices["DXY"].ffill(limit=5)
