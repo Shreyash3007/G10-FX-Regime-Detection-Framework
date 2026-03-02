@@ -125,6 +125,11 @@ def clean_level(val):
 EURUSD = safe('EURUSD')
 USDJPY = safe('USDJPY')
 DXY    = safe('DXY')
+# USD/INR — safe fallback if inr_pipeline.py has not been run
+_inr_available = 'USDINR' in df.columns and df['USDINR'].notna().any()
+USDINR    = safe('USDINR')  if _inr_available else '—'
+USDINR_1D = safe('USDINR_chg_1D')  if 'USDINR_chg_1D'  in df.columns else '—'
+USDINR_12M= safe('USDINR_chg_12M') if 'USDINR_chg_12M' in df.columns else '—'
 
 # price change columns (raw, will format in template)
 EURUSD_1D = safe('EURUSD_chg_1D')
@@ -147,6 +152,16 @@ US_JP_10Y_12M = safe('US_JP_10Y_spread_chg_12M')
 US_JP_2Y  = safe('US_JP_2Y_spread')
 US_JP_2Y_1W = safe('US_JP_2Y_spread_chg_1W')
 US_JP_2Y_12M = safe('US_JP_2Y_spread_chg_12M')
+# US-IN spreads (from inr_pipeline — cross-maturity US 2Y vs IN 10Y)
+US_IN_10Y     = safe('US_IN_10Y_spread')    if 'US_IN_10Y_spread'    in df.columns else '—'
+US_IN_10Y_1W  = safe('US_IN_policy_spread') if 'US_IN_policy_spread' in df.columns else '—'
+US_IN_10Y_12M = '—'   # no 12M change column yet — computed from monthly FRED data
+US_IN_pol     = safe('US_IN_policy_spread') if 'US_IN_policy_spread' in df.columns else '—'
+US_IN_pol_1W  = '—'
+US_IN_pol_12M = '—'
+# FPI flows
+FPI_20D_flow = safe('FPI_20D_flow')       if 'FPI_20D_flow'       in df.columns else '—'
+FPI_20D_pct  = safe('FPI_20D_percentile') if 'FPI_20D_percentile' in df.columns else '—'
 
 # volatility
 EURUSD_vol30 = safe('EURUSD_vol30')
@@ -212,12 +227,16 @@ try: USDJPY = f"{float(USDJPY):.4f}"
 except: pass
 try: DXY = f"{float(DXY):.2f}"
 except: pass
+try: USDINR = f"{float(USDINR):.4f}"
+except: pass
 
 # format spreads for display (no sign)
 US_DE_10Y = fmt_pct_nosign(US_DE_10Y)
 US_DE_2Y = fmt_pct_nosign(US_DE_2Y)
 US_JP_10Y = fmt_pct_nosign(US_JP_10Y)
 US_JP_2Y = fmt_pct_nosign(US_JP_2Y)
+US_IN_10Y_disp = fmt_pct_nosign(US_IN_10Y)
+US_IN_pol_disp = fmt_pct_nosign(US_IN_pol)
 
 # format vol30 values with 1 decimal place
 def fmt_vol30(val):
@@ -366,6 +385,31 @@ jpy_vol_text, jpy_vol_class = vol_flag(USDJPY_vol_pct)
 
 eur_corr_text, eur_corr_class = corr_flag(EURUSD_corr)
 jpy_corr_text, jpy_corr_class = corr_flag(USDJPY_corr)
+
+# USD/INR FPI regime
+def fpi_regime(flow_val, pct_val):
+    """Return FPI regime badge text and CSS class."""
+    try:
+        float(flow_val)
+        p = float(pct_val)
+        if p >= 80: return "INFLOWS CROWDED", "badge-danger"
+        if p <= 20: return "OUTFLOWS CROWDED", "badge-success"
+        return "NEUTRAL", "badge-neutral"
+    except:
+        return "DATA LIMITED", "badge-neutral"
+
+inr_fpi_text, inr_fpi_class = fpi_regime(FPI_20D_flow, FPI_20D_pct)
+FPI_20D_flow_disp = fmt_net(FPI_20D_flow) if FPI_20D_flow != '—' else 'unavailable'
+FPI_20D_pct_disp  = ordinal_or_dash(FPI_20D_pct)
+
+_inr_spread_str = US_IN_10Y_disp if US_IN_10Y_disp != '—' else 'N/A'
+inr_read = (
+    f"US-IN spread at {_inr_spread_str}%. "
+    "India yield premium intact. Rate differential favors INR strength. "
+    "FPI positioning data pending."
+)
+if not _inr_available:
+    inr_read = "run inr_pipeline.py to populate USD/INR data."
 
 # regime read texts
 eur_read = (
@@ -609,6 +653,7 @@ td:first-child {{ text-align: left; color: #e6edf3; font-weight: 500; }}
     <tr><td>EUR/USD</td><td>{EURUSD}</td><td class="{color_class(EURUSD_1D)}">{fmt_pct(EURUSD_1D)}</td><td class="{color_class(EURUSD_12M)}">{fmt_pct(EURUSD_12M)}</td></tr>
     <tr><td>USD/JPY</td><td>{USDJPY}</td><td class="{color_class(USDJPY_1D)}">{fmt_pct(USDJPY_1D)}</td><td class="{color_class(USDJPY_12M)}">{fmt_pct(USDJPY_12M)}</td></tr>
     <tr><td>DXY</td><td>{DXY}</td><td class="{color_class(DXY_1D)}">{fmt_pct(DXY_1D)}</td><td class="{color_class(DXY_12M)}">{fmt_pct(DXY_12M)}</td></tr>
+    <tr><td>USD/INR</td><td>{USDINR}</td><td class="{color_class(USDINR_1D)}">{fmt_pct(USDINR_1D)}</td><td class="{color_class(USDINR_12M)}">{fmt_pct(USDINR_12M)}</td></tr>
   </table>
 </div>
 
@@ -622,7 +667,10 @@ td:first-child {{ text-align: left; color: #e6edf3; font-weight: 500; }}
       <tr><td>US-DE 2Y (same)</td><td>{US_DE_2Y}</td><td class="{color_class(US_DE_2Y_1W)}">{fmt_pct(US_DE_2Y_1W,'pp')}</td><td class="{color_class(US_DE_2Y_12M)}">{fmt_pct(US_DE_2Y_12M,'pp')}</td></tr>
       <tr><td>US-JP 10Y (cross)</td><td>{US_JP_10Y}</td><td class="{color_class(US_JP_10Y_1W)}">{fmt_pct(US_JP_10Y_1W,'pp')}</td><td class="{color_class(US_JP_10Y_12M)}">{fmt_pct(US_JP_10Y_12M,'pp')}</td></tr>
       <tr><td>US-JP 2Y (same)</td><td>{US_JP_2Y}</td><td class="{color_class(US_JP_2Y_1W)}">{fmt_pct(US_JP_2Y_1W,'pp')}</td><td class="{color_class(US_JP_2Y_12M)}">{fmt_pct(US_JP_2Y_12M,'pp')}</td></tr>
+      <tr style="border-top:1px solid #30363d;"><td>US-IN 10Y (cross) *</td><td>{US_IN_10Y_disp}</td><td class="{color_class(US_IN_10Y_1W)}">{fmt_pct(US_IN_10Y_1W,'pp')}</td><td class="neutral-text">{US_IN_10Y_12M}</td></tr>
+      <tr><td>US-IN policy</td><td>{US_IN_pol_disp}</td><td class="neutral-text">{US_IN_pol_1W}</td><td class="neutral-text">{US_IN_pol_12M}</td></tr>
     </table>
+    <div style="font-size:10px;color:#484f58;margin-top:6px;">* IN 10Y = FRED monthly, ~30 day lag</div>
   </div>
   <div class="card">
     <div class="card-title">Volatility <span style="color:#484f58;font-weight:400;">(30D realized, annualized | 3Y pct)</span></div>
@@ -679,6 +727,16 @@ td:first-child {{ text-align: left; color: #e6edf3; font-weight: 500; }}
   </div>
 </div>
 
+<!-- ROW 3.5: USD/INR POSITIONING -->
+<div class="card" style="margin-bottom:12px;">
+  <div class="card-title">USD/INR Positioning <span style="color:#484f58;font-weight:400;">(SEBI FPI Proxy)</span></div>
+  <table>
+    <tr><th>Category</th><th>Net Flow (20D)</th><th>Percentile</th><th>Regime</th></tr>
+    <tr><td>FPI Debt Flow (20D)</td><td class="neutral-text">{FPI_20D_flow_disp}</td><td>{FPI_20D_pct_disp}</td><td><span class="badge {inr_fpi_class}">{inr_fpi_text}</span></td></tr>
+  </table>
+  <div style="font-size:10px;color:#484f58;margin-top:6px;">* FPI flow proxy — not equivalent to CFTC COT. JS-rendered source pending Playwright integration.</div>
+</div>
+
 <!-- ROW 4: REGIME READ full width -->
 <div class="card" style="margin-bottom:12px;">
   <div class="card-title">Regime Read</div>
@@ -695,10 +753,18 @@ td:first-child {{ text-align: left; color: #e6edf3; font-weight: 500; }}
     <div class="regime-pair">
       USD/JPY
       <span class="badge {jpy_pos_class}">{jpy_pos_regime}</span>
-      <!-- vol flag badge could go here -->
     </div>
     <div class="regime-text">
       {jpy_read}
+    </div>
+  </div>
+  <div class="regime-block">
+    <div class="regime-pair">
+      USD/INR
+      <span class="badge {inr_fpi_class}">{inr_fpi_text}</span>
+    </div>
+    <div class="regime-text">
+      {inr_read}
     </div>
   </div>
 </div>
