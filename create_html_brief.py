@@ -686,6 +686,7 @@ td:first-child {{ text-align: left; color: #e6edf3; font-weight: 500; }}
     COT as of: {cot_date}<br>
     next COT: {next_cot_date}<br>
     pipeline run: {pipeline_run}
+    <div style="font-size:11px;color:#888888;font-style:italic;margin-top:6px;">All prices reflect prior session closing values. Data updates daily after NY close.</div>
   </div>
 </div>
 
