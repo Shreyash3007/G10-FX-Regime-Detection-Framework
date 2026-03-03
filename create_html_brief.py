@@ -97,30 +97,6 @@ _gold_raw   = get_commodity_price('GC=F', 'Gold')
 def safe(col):
     return row.get(col, '—')
 
-def clean_level(val):
-  """Clean key level value: convert NaN or 'nan' string to em dash."""
-  if val is None or val == '':
-    return '—'
-  # Check for actual NaN
-  try:
-    if pd.isna(val):
-      return '—'
-  except:
-    pass
-  # Check for string 'nan'
-  if isinstance(val, str):
-    if val.lower() == 'nan':
-      return '—'
-    return val
-  # Try to convert to float and back to catch numeric NaN
-  try:
-    v = float(val)
-    if np.isnan(v):
-      return '—'
-    return str(val)
-  except:
-    return val if val else '—'
-
 # extract fields
 # raw values
 EURUSD = safe('EURUSD')
@@ -154,10 +130,10 @@ US_JP_2Y  = safe('US_JP_2Y_spread')
 US_JP_2Y_1W = safe('US_JP_2Y_spread_chg_1W')
 US_JP_2Y_12M = safe('US_JP_2Y_spread_chg_12M')
 # US-IN spreads (from inr_pipeline — cross-maturity US 2Y vs IN 10Y)
-US_IN_10Y     = safe('US_IN_10Y_spread')    if 'US_IN_10Y_spread'    in df.columns else '—'
-US_IN_10Y_12M = '—'   # no 12M change column yet — computed from monthly FRED data
-US_IN_pol     = safe('US_IN_policy_spread') if 'US_IN_policy_spread' in df.columns else '—'
-US_IN_pol_12M = '—'
+US_IN_10Y     = safe('US_IN_10Y_spread')         if 'US_IN_10Y_spread'         in df.columns else '—'
+US_IN_10Y_12M = safe('US_IN_10Y_spread_chg_12M') if 'US_IN_10Y_spread_chg_12M' in df.columns else '—'
+US_IN_pol     = safe('US_IN_policy_spread')       if 'US_IN_policy_spread'       in df.columns else '—'
+US_IN_pol_12M = safe('US_IN_policy_spread_chg_12M') if 'US_IN_policy_spread_chg_12M' in df.columns else '—'
 # 1W change = current value minus value 5 rows back
 def _spread_1w_chg(col):
     if col not in df.columns:
@@ -181,20 +157,6 @@ USDJPY_vol_pct = safe('USDJPY_vol_pct')
 # regime correlation
 EURUSD_corr = safe('EURUSD_spread_corr_60d')
 USDJPY_corr = safe('USDJPY_spread_corr_60d')
-
-# key levels
-EUR_S1 = clean_level(safe('EURUSD_S1'))
-EUR_S2 = clean_level(safe('EURUSD_S2'))
-EUR_S3 = clean_level(safe('EURUSD_S3'))
-EUR_R1 = clean_level(safe('EURUSD_R1'))
-EUR_R2 = clean_level(safe('EURUSD_R2'))
-EUR_R3 = clean_level(safe('EURUSD_R3'))
-JPY_S1 = clean_level(safe('USDJPY_S1'))
-JPY_S2 = clean_level(safe('USDJPY_S2'))
-JPY_S3 = clean_level(safe('USDJPY_S3'))
-JPY_R1 = clean_level(safe('USDJPY_R1'))
-JPY_R2 = clean_level(safe('USDJPY_R2'))
-JPY_R3 = clean_level(safe('USDJPY_R3'))
 
 # positioning percentiles and nets
 EUR_lev_pct = safe('EUR_lev_percentile')
@@ -472,6 +434,75 @@ usdinr_fund_html = (
     else '<div style="color:#484f58;padding:40px;text-align:center;font-size:12px;">Chart not available — run create_dashboards.py first</div>'
 )
 
+def color_val(val, reverse=False):
+    try:
+        v = float(val)
+        if v > 0.001:
+            return '#ff4444' if reverse else '#00d4aa'
+        elif v < -0.001:
+            return '#00d4aa' if reverse else '#ff4444'
+        else:
+            return '#888888'
+    except:
+        return '#888888'
+
+
+# global bar values
+_dxy_color  = color_val(DXY_1D)
+_dxy_1d_fmt = fmt_pct(DXY_1D)
+
+_brent_price = '—'
+if _brent_raw:
+    try:
+        _brent_price = f"{float(_brent_raw.split(': ', 1)[1]):.2f}"
+    except:
+        pass
+
+_gold_price = '—'
+if _gold_raw:
+    try:
+        _gold_price = f"{int(round(float(_gold_raw.split(': ', 1)[1]))):,}"
+    except:
+        pass
+
+
+# carousel chart data
+_eur_srcs = [s for s in [charts['eurusd_fund'], charts['eurusd_pos'], charts['eurusd_vol']] if s]
+_jpy_srcs = [s for s in [charts['usdjpy_fund'], charts['usdjpy_pos'], charts['usdjpy_vol']] if s]
+_inr_src  = (f'data:image/png;base64,{usdinr_fundamentals_b64}' if usdinr_fundamentals_b64 else '')
+_inr_srcs = [_inr_src] if _inr_src else []
+
+def _js_arr(srcs, labels):
+    if not srcs:
+        return '[]'
+    return '[' + ','.join(f'["{s}","{l}"]' for s, l in zip(srcs, labels)) + ']'
+
+_js_eurusd = _js_arr(_eur_srcs, ['FUNDAMENTALS', 'POSITIONING', 'VOLATILITY'])
+_js_usdjpy = _js_arr(_jpy_srcs, ['FUNDAMENTALS', 'POSITIONING', 'VOLATILITY'])
+_js_usdinr = _js_arr(_inr_srcs, ['FUNDAMENTALS'])
+
+def _dots_html(pair, count):
+    return ''.join(
+        f'<span id="dot-{pair}-{i}" class="chart-dot">&#9675;</span>'
+        for i in range(count)
+    )
+
+_eur_dots = _dots_html('eurusd', len(_eur_srcs))
+_jpy_dots = _dots_html('usdjpy', len(_jpy_srcs))
+_inr_dots = _dots_html('usdinr', len(_inr_srcs))
+
+
+# card header badge class lookup
+def _badge_cls(regime):
+    return {
+        'CROWDED LONG':  'badge-crowded-long',
+        'CROWDED SHORT': 'badge-crowded-short',
+    }.get(regime, 'badge-neutral-card')
+
+_eur_badge_cls = _badge_cls(eur_pos_regime)
+_jpy_badge_cls = _badge_cls(jpy_pos_regime)
+
+
 # build HTML
 html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -479,413 +510,553 @@ html = f"""<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>G10 FX Morning Brief — {TODAY_FMT}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 * {{ box-sizing: border-box; margin: 0; padding: 0; }}
 body {{
-    background: #0d1117;
-    color: #e6edf3;
-    font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+    background: #0d0d0d;
+    color: #cccccc;
+    font-family: 'Inter', sans-serif;
     font-size: 13px;
-    padding: 24px;
-    max-width: 1400px;
-    margin: 0 auto;
+}}
+.globalbar {{
+    width: 100%;
+    background: #1a1a1a;
+    padding: 6px 20px;
+    font-size: 11px;
+    color: #888;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }}
 .header {{
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    border-bottom: 1px solid #30363d;
-    padding-bottom: 12px;
-    margin-bottom: 20px;
+    padding: 16px 20px;
+    border-bottom: 1px solid #1e1e1e;
 }}
-.header h1 {{
-    font-size: 16px;
+.header-left .label {{
+    font-size: 10px;
+    color: #444;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+}}
+.header-left .title {{
+    font-size: 20px;
     font-weight: 600;
-    color: #58a6ff;
-    letter-spacing: 0.5px;
+    color: #ffffff;
 }}
-.header .meta {{
+.header-right {{
     font-size: 11px;
-    color: #8b949e;
+    color: #888;
     text-align: right;
-    line-height: 1.6;
+    line-height: 1.7;
 }}
-.grid-2 {{
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 12px;
-}}
-.grid-3 {{
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 8px;
-    margin-bottom: 12px;
+.content {{
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 }}
 .card {{
-    background: #161b22;
-    border: 1px solid #30363d;
+    background: #141414;
+    border: 1px solid #2a2a2a;
     border-radius: 6px;
-    padding: 14px 16px;
+    overflow: hidden;
 }}
-.card-title {{
-    font-size: 10px;
-    font-weight: 600;
-    color: #8b949e;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 10px;
-    border-bottom: 1px solid #21262d;
-    padding-bottom: 6px;
+.card-header {{
+    height: 40px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    background: #1a1a1a;
+    border-bottom: 1px solid #2a2a2a;
 }}
-table {{ width: 100%; border-collapse: collapse; }}
-th {{
-    font-size: 10px;
-    color: #8b949e;
-    text-align: right;
-    padding: 3px 6px 6px;
-    font-weight: 400;
-}}
-th:first-child {{ text-align: left; }}
-td {{
-    padding: 4px 6px;
-    font-size: 12px;
-    text-align: right;
-    border-top: 1px solid #21262d;
-}}
-td:first-child {{ text-align: left; color: #e6edf3; font-weight: 500; }}
-.positive {{ color: #3fb950; }}
-.negative {{ color: #f85149; }}
-.neutral-text {{ color: #8b949e; }}
-.badge {{
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 3px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-}}
-.badge-danger   {{ background: #3d1f1f; color: #f85149; border: 1px solid #5a2020; }}
-.badge-success  {{ background: #1f3d2a; color: #3fb950; border: 1px solid #204d2e; }}
-.badge-neutral  {{ background: #1f2937; color: #8b949e; border: 1px solid #374151; }}
-.badge-elevated {{ background: #3d2e1f; color: #d29922; border: 1px solid #5a421f; }}
-.badge-extreme  {{ background: #3d1f1f; color: #f85149; border: 1px solid #5a2020; }}
-.regime-block {{
-    margin-bottom: 14px;
-    padding-bottom: 14px;
-    border-bottom: 1px solid #21262d;
-}}
-.regime-block:last-child {{ border-bottom: none; margin-bottom: 0; }}
-.regime-pair {{
+.ch-pair {{
     font-size: 13px;
     font-weight: 600;
-    color: #58a6ff;
-    margin-bottom: 6px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}}
-.regime-text {{
-    color: #c9d1d9;
-    line-height: 1.6;
-    font-size: 12px;
-}}
-.charts-section {{ margin-bottom: 12px; }}
-.pair-label {{
-    font-size: 11px;
-    font-weight: 600;
-    color: #8b949e;
-    text-transform: uppercase;
+    color: #ffffff;
     letter-spacing: 1px;
-    margin-bottom: 8px;
-    padding-left: 4px;
 }}
-.chart-img {{
+.ch-price {{
+    font-size: 18px;
+    font-weight: 700;
+    color: #ffffff;
+    margin-left: 16px;
+}}
+.ch-1d {{
+    font-size: 13px;
+    margin-left: 12px;
+}}
+.ch-12m-label {{
+    font-size: 11px;
+    color: #888;
+    margin-left: 12px;
+}}
+.ch-12m {{
+    font-size: 12px;
+    margin-left: 4px;
+}}
+.ch-badge {{
+    margin-left: auto;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+}}
+.badge-crowded-long  {{ background: #f0a500; color: #000000; }}
+.badge-crowded-short {{ background: #e05c5c; color: #ffffff; }}
+.badge-neutral-card  {{ background: #333333; color: #888888; }}
+.card-body {{
+    height: 380px;
+    display: flex;
+    background: #141414;
+}}
+
+.brief-left {{
+    width: 38%;
+    background: #141414;
+    border-right: 1px solid #2a2a2a;
+    padding: 14px 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}}
+.brief-right {{
+    width: 62%;
+    background: #0d0d0d;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}}
+.carousel-img-area {{
+    flex-grow: 1;
+    position: relative;
+    overflow: hidden;
+}}
+.carousel-img-area img {{
     width: 100%;
-    height: auto;
-    border-radius: 4px;
-    cursor: pointer;
-    border: 1px solid #30363d;
-    transition: border-color 0.2s;
+    height: 100%;
+    object-fit: contain;
+    padding: 4px;
     display: block;
 }}
-.chart-img:hover {{ border-color: #58a6ff; }}
-.chart-card {{
-    background: #161b22;
-    border: 1px solid #30363d;
-    border-radius: 6px;
-    padding: 8px;
+.carousel-arrow {{
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0,0,0,0.6);
+    border: 1px solid #333;
+    border-radius: 3px;
+    color: #888;
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+    cursor: pointer;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
 }}
-.chart-label {{
-    font-size: 9px;
-    color: #8b949e;
-    text-align: center;
-    margin-top: 5px;
+.carousel-arrow:hover {{ border-color: #555; color: #ccc; }}
+.carousel-arrow-left  {{ left: 8px; }}
+.carousel-arrow-right {{ right: 8px; }}
+.chart-label-bar {{
+    height: 28px;
+    background: #1a1a1a;
+    border-top: 1px solid #2a2a2a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-shrink: 0;
+}}
+.chart-dot {{
+    font-size: 8px;
+    color: #333;
+    cursor: default;
+}}
+.chart-label-text {{
+    color: #888;
+    font-size: 10px;
     text-transform: uppercase;
-    letter-spacing: 0.8px;
+    letter-spacing: 1px;
+}}
+.brief-section {{
+    border-top: 1px solid #1e1e1e;
+    padding-top: 10px;
+}}
+.brief-section:first-child {{
+    border-top: none;
+    padding-top: 0;
+}}
+.brief-label {{
+    color: #555;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+}}
+.brief-row {{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    line-height: 1.35;
+    white-space: nowrap;
+}}
+.brief-row .name {{
+    color: #888;
+    font-size: 11px;
+}}
+.brief-row .val {{
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+}}
+.brief-row .pct {{
+    font-size: 11px;
+}}
+.badge-mini {{
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    border: 1px solid #2a2a2a;
+}}
+.badge-mini.badge-neutral {{ background: #1a1a1a; color: #888; }}
+.badge-mini.badge-success {{ background: rgba(0, 212, 170, 0.12); color: #00d4aa; border-color: rgba(0, 212, 170, 0.25); }}
+.badge-mini.badge-warning {{ background: rgba(240, 165, 0, 0.12); color: #f0a500; border-color: rgba(240, 165, 0, 0.25); }}
+.badge-mini.badge-danger  {{ background: rgba(224, 92, 92, 0.12); color: #e05c5c; border-color: rgba(224, 92, 92, 0.25); }}
+
+.brief-text {{
+    color: #aaaaaa;
+    font-size: 11px;
+    line-height: 1.5;
+}}
+.brief-muted {{
+    color: #555;
+    font-size: 11px;
 }}
 .footer {{
-    margin-top: 20px;
-    padding-top: 12px;
-    border-top: 1px solid #21262d;
+    background: #0d0d0d;
+    border-top: 1px solid #1e1e1e;
+    padding: 10px 20px;
     font-size: 10px;
-    color: #484f58;
-    display: flex;
-    justify-content: space-between;
-}}
-/* Status bar */
-.statusbar {{
-    background: #1a1a2e;
-    margin: -24px -24px 20px -24px;
-    padding: 7px 24px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 11px;
-    color: #8b949e;
-    border-bottom: 1px solid #21262d;
-}}
-.sb-price   {{ color: #e6edf3; font-weight: 600; }}
-.sb-pos     {{ color: #3fb950; }}
-.sb-neg     {{ color: #f85149; }}
-.sb-muted   {{ color: #8b949e; }}
-.sb-sep     {{ color: #484f58; }}
-.sb-updated {{ color: #6e7681; padding-left: 16px; flex-shrink: 0; }}
-/* Lightbox */
-.lightbox {{
-    display: none;
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: rgba(0,0,0,0.92);
-    z-index: 1000;
-    cursor: pointer;
-    justify-content: center;
-    align-items: center;
-}}
-.lightbox.active {{ display: flex; }}
-.lightbox img {{
-    max-width: 95vw;
-    max-height: 95vh;
-    border-radius: 4px;
-    object-fit: contain;
+    color: #555;
 }}
 </style>
 </head>
 <body>
-<!-- STATUS BAR -->
-{statusbar_html}
+
+<!-- GLOBAL BAR -->
+<div class="globalbar">
+  DXY {DXY} <span style="color:{_dxy_color}">{_dxy_1d_fmt}</span>
+  &nbsp;|&nbsp; Brent ${_brent_price}
+  &nbsp;|&nbsp; Gold ${_gold_price}
+  &nbsp;|&nbsp; COT: {cot_date}
+  &nbsp;|&nbsp; Next COT: {next_cot_date}
+  &nbsp;|&nbsp; All prices: prior session close
+</div>
+
 <!-- HEADER -->
 <div class="header">
-  <div>
-    <div style="font-size:11px;color:#8b949e;margin-bottom:4px;">G10 FX REGIME DETECTION FRAMEWORK</div>
-    <h1>MORNING BRIEF — {TODAY_FMT.upper()}</h1>
+  <div class="header-left">
+    <div class="label">G10 FX Regime Detection Framework</div>
+    <div class="title">Morning Brief &mdash; {TODAY_FMT}</div>
   </div>
-  <div class="meta">
+  <div class="header-right">
     data as of: {data_date}<br>
-    COT as of: {cot_date}<br>
-    next COT: {next_cot_date}<br>
     pipeline run: {pipeline_run}
-    <div style="font-size:11px;color:#888888;font-style:italic;margin-top:6px;">All prices reflect prior session closing values. Data updates daily after NY close.</div>
   </div>
 </div>
 
-<!-- ROW 1: PRICES full width -->
-<div class="card" style="margin-bottom:12px;">
-  <div class="card-title">Prices</div>
-  <table>
-    <tr>
-      <th>Pair</th><th>Price</th><th>1D</th><th>12M</th>
-    </tr>
-    <tr><td>EUR/USD</td><td>{EURUSD}</td><td class="{color_class(EURUSD_1D)}">{fmt_pct(EURUSD_1D)}</td><td class="{color_class(EURUSD_12M)}">{fmt_pct(EURUSD_12M)}</td></tr>
-    <tr><td>USD/JPY</td><td>{USDJPY}</td><td class="{color_class(USDJPY_1D)}">{fmt_pct(USDJPY_1D)}</td><td class="{color_class(USDJPY_12M)}">{fmt_pct(USDJPY_12M)}</td></tr>
-    <tr><td>DXY</td><td>{DXY}</td><td class="{color_class(DXY_1D)}">{fmt_pct(DXY_1D)}</td><td class="{color_class(DXY_12M)}">{fmt_pct(DXY_12M)}</td></tr>
-    <tr><td>USD/INR</td><td>{USDINR}</td><td class="{color_class(USDINR_1D)}">{fmt_pct(USDINR_1D)}</td><td class="{color_class(USDINR_12M)}">{fmt_pct(USDINR_12M)}</td></tr>
-  </table>
-</div>
+<!-- MAIN CONTENT -->
+<div class="content">
 
-<!-- ROW 2: RATE DIFFERENTIALS left | VOLATILITY right -->
-<div class="grid-2">
-  <div class="card">
-    <div class="card-title">Rate Differentials <span style="color:#484f58;font-weight:400;">(narrowing = foreign ccy strengthens)</span></div>
-    <table>
-      <tr><th>Spread</th><th>Today</th><th>1W chg</th><th>12M chg</th></tr>
-      <tr><td>US-DE 10Y (cross)</td><td>{US_DE_10Y}</td><td class="{color_class(US_DE_10Y_1W)}">{fmt_pct(US_DE_10Y_1W,'pp')}</td><td class="{color_class(US_DE_10Y_12M)}">{fmt_pct(US_DE_10Y_12M,'pp')}</td></tr>
-      <tr><td>US-DE 2Y (same)</td><td>{US_DE_2Y}</td><td class="{color_class(US_DE_2Y_1W)}">{fmt_pct(US_DE_2Y_1W,'pp')}</td><td class="{color_class(US_DE_2Y_12M)}">{fmt_pct(US_DE_2Y_12M,'pp')}</td></tr>
-      <tr><td>US-JP 10Y (cross)</td><td>{US_JP_10Y}</td><td class="{color_class(US_JP_10Y_1W)}">{fmt_pct(US_JP_10Y_1W,'pp')}</td><td class="{color_class(US_JP_10Y_12M)}">{fmt_pct(US_JP_10Y_12M,'pp')}</td></tr>
-      <tr><td>US-JP 2Y (same)</td><td>{US_JP_2Y}</td><td class="{color_class(US_JP_2Y_1W)}">{fmt_pct(US_JP_2Y_1W,'pp')}</td><td class="{color_class(US_JP_2Y_12M)}">{fmt_pct(US_JP_2Y_12M,'pp')}</td></tr>
-      <tr style="border-top:1px solid #30363d;"><td>US-IN 10Y (cross) *</td><td>{US_IN_10Y_disp}</td><td class="{color_class(US_IN_10Y_1W)}">{fmt_pct(US_IN_10Y_1W,'pp')}</td><td class="neutral-text">{US_IN_10Y_12M}</td></tr>
-      <tr><td>US-IN policy</td><td>{US_IN_pol_disp}</td><td class="{color_class(US_IN_pol_1W)}">{fmt_pct(US_IN_pol_1W,'pp')}</td><td class="neutral-text">{US_IN_pol_12M}</td></tr>
-    </table>
-    <div style="font-size:10px;color:#484f58;margin-top:6px;">* IN 10Y = FRED monthly, ~30 day lag</div>
-  </div>
-  <div class="card">
-    <div class="card-title">Volatility <span style="color:#484f58;font-weight:400;">(30D realized, annualized | 3Y pct)</span></div>
-    <table>
-      <tr><th>Pair</th><th>Vol</th><th>Percentile</th><th>Flag</th></tr>
-      <tr><td>EUR/USD</td><td>{EURUSD_vol30}</td><td>{ordinal_or_dash(EURUSD_vol_pct)}</td><td><span class="badge {eur_vol_class}">{eur_vol_text}</span></td></tr>
-      <tr><td>USD/JPY</td><td>{USDJPY_vol30}</td><td>{ordinal_or_dash(USDJPY_vol_pct)}</td><td><span class="badge {jpy_vol_class}">{jpy_vol_text}</span></td></tr>
-    </table>
-  </div>
-</div>
+  <div class="card" data-pair="eurusd">
+    <div class="card-header">
+      <span class="ch-pair">EUR/USD</span>
+      <span class="ch-price">{EURUSD}</span>
+      <span class="ch-1d" style="color:{color_val(EURUSD_1D)}">{fmt_pct(EURUSD_1D)}</span>
+      <span class="ch-12m-label">12M:</span>
+      <span class="ch-12m" style="color:{color_val(EURUSD_12M)}">{fmt_pct(EURUSD_12M)}</span>
+      <span class="ch-badge {_eur_badge_cls}">{eur_pos_regime}</span>
+    </div>
+    <div class="card-body">
+      <div class="brief-left">
 
-<!-- ROW 2.5: REGIME CORRELATION -->
-<div class="card">
-  <div class="card-title">Regime Correlation <span style="color:#484f58;font-weight:400;">(60D rolling | spread vs FX move)</span></div>
-  <table>
-    <tr><th>Pair</th><th>Correlation</th><th>Flag</th></tr>
-    <tr><td>EUR/USD</td><td>{EURUSD_corr_fmt}</td><td><span class="badge {eur_corr_class}">{eur_corr_text}</span></td></tr>
-    <tr><td>USD/JPY</td><td>{USDJPY_corr_fmt}</td><td><span class="badge {jpy_corr_class}">{jpy_corr_text}</span></td></tr>
-  </table>
-</div>
+        <div class="brief-section">
+          <div class="brief-label">RATE DIFFERENTIALS</div>
+          <div class="brief-row">
+            <span class="name">US-DE 10Y</span>
+            <span class="val">{US_DE_10Y}</span>
+            <span class="pct" style="color:{color_val(US_DE_10Y_12M, reverse=True)}">{fmt_pct(US_DE_10Y_12M, suffix='pp')}</span>
+          </div>
+          <div class="brief-row">
+            <span class="name">US-DE 2Y</span>
+            <span class="val">{US_DE_2Y}</span>
+            <span class="pct" style="color:{color_val(US_DE_2Y_12M, reverse=True)}">{fmt_pct(US_DE_2Y_12M, suffix='pp')}</span>
+          </div>
+        </div>
 
-<!-- ROW 2.75: KEY LEVELS -->
-<div class="card">
-  <div class="card-title">Key Levels <span style="color:#484f58;font-weight:400;">(180D | S=support, R=resistance)</span></div>
-  <table>
-    <tr><th colspan="4">EUR/USD</th></tr>
-    <tr><td><strong>S3</strong></td><td>{EUR_S3}</td><td><strong>S2</strong></td><td>{EUR_S2}</td></tr>
-    <tr><td><strong>S1</strong></td><td>{EUR_S1}</td><td><strong>R1</strong></td><td>{EUR_R1}</td></tr>
-    <tr><td><strong>R2</strong></td><td>{EUR_R2}</td><td><strong>R3</strong></td><td>{EUR_R3}</td></tr>
-    <tr style="border-top: 1px solid #30363d;"><th colspan="4">USD/JPY</th></tr>
-    <tr><td><strong>S3</strong></td><td>{JPY_S3}</td><td><strong>S2</strong></td><td>{JPY_S2}</td></tr>
-    <tr><td><strong>S1</strong></td><td>{JPY_S1}</td><td><strong>R1</strong></td><td>{JPY_R1}</td></tr>
-    <tr><td><strong>R2</strong></td><td>{JPY_R2}</td><td><strong>R3</strong></td><td>{JPY_R3}</td></tr>
-  </table>
-</div>
+        <div class="brief-section">
+          <div class="brief-label">POSITIONING (COT)</div>
+          <div class="brief-row">
+            <span class="name">Lev Money</span>
+            <span class="pct" style="color:{color_val(EUR_net)}">{EUR_net_disp}</span>
+            <span class="pct">{ordinal_or_dash(EUR_lev_pct)}</span>
+            <span class="badge-mini {eur_pos_class}">{eur_pos_regime}</span>
+          </div>
+          <div class="brief-row">
+            <span class="name">Asset Manager</span>
+            <span class="pct" style="color:{color_val(EUR_am_net)}">{EUR_am_net_disp}</span>
+            <span class="pct">{ordinal_or_dash(EUR_am_pct)}</span>
+            <span class="badge-mini {pos_regime(EUR_am_pct)[1]}">{pos_regime(EUR_am_pct)[0]}</span>
+          </div>
+        </div>
 
-<!-- ROW 3: POSITIONING — EUR left | JPY right -->
-<div class="grid-2">
-  <div class="card">
-    <div class="card-title">EUR/USD Positioning <span style="color:#484f58;font-weight:400;">(COT Disaggregated)</span></div>
-    <table>
-      <tr><th>Category</th><th>Net Contracts</th><th>Percentile</th><th>Regime</th></tr>
-      <tr><td>Lev Money</td><td class="{color_class(EUR_net)}">{EUR_net_disp}</td><td>{ordinal_or_dash(EUR_lev_pct)}</td><td><span class="badge {eur_pos_class}">{eur_pos_regime}</span></td></tr>
-      <tr><td>Asset Manager</td><td class="{color_class(EUR_am_net)}">{EUR_am_net_disp}</td><td>{ordinal_or_dash(EUR_am_pct)}</td><td><span class="badge {eur_pos_class}">{eur_pos_regime}</span></td></tr>
-    </table>
-  </div>
-  <div class="card">
-    <div class="card-title">USD/JPY Positioning <span style="color:#484f58;font-weight:400;">(COT Disaggregated)</span></div>
-    <table>
-      <tr><th>Category</th><th>Net Contracts</th><th>Percentile</th><th>Regime</th></tr>
-      <tr><td>Lev Money</td><td class="{color_class(JPY_net)}">{JPY_net_disp}</td><td>{ordinal_or_dash(JPY_lev_pct)}</td><td><span class="badge {jpy_pos_class}">{jpy_pos_regime}</span></td></tr>
-      <tr><td>Asset Manager</td><td class="{color_class(JPY_am_net)}">{JPY_am_net_disp}</td><td>{ordinal_or_dash(JPY_am_pct)}</td><td><span class="badge {jpy_pos_class}">{jpy_pos_regime}</span></td></tr>
-    </table>
-  </div>
-</div>
+        <div class="brief-section">
+          <div class="brief-label">VOLATILITY & CORRELATION</div>
+          <div class="brief-row">
+            <span class="name">30D Vol</span>
+            <span class="val">{EURUSD_vol30}</span>
+            <span class="pct">{ordinal_or_dash(EURUSD_vol_pct)}</span>
+            <span class="badge-mini {eur_vol_class}">{eur_vol_text}</span>
+          </div>
+          <div class="brief-row">
+            <span class="name">60D Corr</span>
+            <span class="pct" style="color:{color_val(EURUSD_corr)}">{EURUSD_corr_fmt}</span>
+            <span></span>
+            <span class="badge-mini {eur_corr_class}">{eur_corr_text}</span>
+          </div>
+        </div>
 
-<!-- ROW 3.5: USD/INR POSITIONING -->
-<div class="card" style="margin-bottom:12px;">
-  <div class="card-title">USD/INR Positioning <span style="color:#484f58;font-weight:400;">(SEBI FPI Proxy)</span></div>
-  <table>
-    <tr><th>Category</th><th>Net Flow (20D)</th><th>Percentile</th><th>Regime</th></tr>
-    <tr><td>FPI Debt Flow (20D)</td><td class="neutral-text">{FPI_20D_flow_disp}</td><td>{FPI_20D_pct_disp}</td><td><span class="badge {inr_fpi_class}">{inr_fpi_text}</span></td></tr>
-  </table>
-  <div style="font-size:10px;color:#484f58;margin-top:6px;">* FPI flow proxy — not equivalent to CFTC COT. JS-rendered source pending Playwright integration.</div>
-</div>
+        <div class="brief-section">
+          <div class="brief-label">REGIME READ</div>
+          <div class="brief-text">{eur_read}</div>
+        </div>
 
-<!-- ROW 4: REGIME READ full width -->
-<div class="card" style="margin-bottom:12px;">
-  <div class="card-title">Regime Read</div>
-  <div class="regime-block">
-    <div class="regime-pair">
-      EUR/USD
-      <span class="badge {eur_pos_class}">{eur_pos_regime}</span>
-    </div>
-    <div class="regime-text">
-      {eur_read}
-    </div>
-  </div>
-  <div class="regime-block">
-    <div class="regime-pair">
-      USD/JPY
-      <span class="badge {jpy_pos_class}">{jpy_pos_regime}</span>
-    </div>
-    <div class="regime-text">
-      {jpy_read}
+      </div>
+      <div class="brief-right">
+        <div class="carousel-img-area">
+          <img id="chart-eurusd" alt="">
+          <button class="carousel-arrow carousel-arrow-left" onclick="prevChart('eurusd')">&lsaquo;</button>
+          <button class="carousel-arrow carousel-arrow-right" onclick="nextChart('eurusd')">&rsaquo;</button>
+        </div>
+        <div class="chart-label-bar">
+          {_eur_dots}
+          <span id="label-eurusd" class="chart-label-text"></span>
+        </div>
+      </div>
     </div>
   </div>
-  <div class="regime-block">
-    <div class="regime-pair">
-      USD/INR
-      <span class="badge {inr_fpi_class}">{inr_fpi_text}</span>
-    </div>
-    <div class="regime-text">
-      {inr_read}
-    </div>
-  </div>
-</div>
 
-<!-- ROW 5: EUR/USD CHARTS -->
-<div class="charts-section">
-  <div class="pair-label">EUR/USD — Charts</div>
-  <div class="grid-3">
-    <div class="chart-card">
-      <img class="chart-img" src="{charts['eurusd_fund']}" onclick="openLightbox(this)">
-      <div class="chart-label">Fundamentals</div>
+  <div class="card" data-pair="usdjpy">
+    <div class="card-header">
+      <span class="ch-pair">USD/JPY</span>
+      <span class="ch-price">{USDJPY}</span>
+      <span class="ch-1d" style="color:{color_val(USDJPY_1D)}">{fmt_pct(USDJPY_1D)}</span>
+      <span class="ch-12m-label">12M:</span>
+      <span class="ch-12m" style="color:{color_val(USDJPY_12M)}">{fmt_pct(USDJPY_12M)}</span>
+      <span class="ch-badge {_jpy_badge_cls}">{jpy_pos_regime}</span>
     </div>
-    <div class="chart-card">
-      <img class="chart-img" src="{charts['eurusd_pos']}" onclick="openLightbox(this)">
-      <div class="chart-label">Positioning</div>
-    </div>
-    <div class="chart-card">
-      <img class="chart-img" src="{charts['eurusd_vol']}" onclick="openLightbox(this)">
-      <div class="chart-label">Volatility</div>
-    </div>
-  </div>
-</div>
+    <div class="card-body">
+      <div class="brief-left">
 
-<!-- ROW 6: USD/JPY CHARTS -->
-<div class="charts-section">
-  <div class="pair-label">USD/JPY — Charts</div>
-  <div class="grid-3">
-    <div class="chart-card">
-      <img class="chart-img" src="{charts['usdjpy_fund']}" onclick="openLightbox(this)">
-      <div class="chart-label">Fundamentals</div>
-    </div>
-    <div class="chart-card">
-      <img class="chart-img" src="{charts['usdjpy_pos']}" onclick="openLightbox(this)">
-      <div class="chart-label">Positioning</div>
-    </div>
-    <div class="chart-card">
-      <img class="chart-img" src="{charts['usdjpy_vol']}" onclick="openLightbox(this)">
-      <div class="chart-label">Volatility</div>
-    </div>
-  </div>
-</div>
+        <div class="brief-section">
+          <div class="brief-label">RATE DIFFERENTIALS</div>
+          <div class="brief-row">
+            <span class="name">US-JP 10Y</span>
+            <span class="val">{US_JP_10Y}</span>
+            <span class="pct" style="color:{color_val(US_JP_10Y_12M, reverse=True)}">{fmt_pct(US_JP_10Y_12M, suffix='pp')}</span>
+          </div>
+          <div class="brief-row">
+            <span class="name">US-JP 2Y</span>
+            <span class="val">{US_JP_2Y}</span>
+            <span class="pct" style="color:{color_val(US_JP_2Y_12M, reverse=True)}">{fmt_pct(US_JP_2Y_12M, suffix='pp')}</span>
+          </div>
+        </div>
 
-<!-- ROW 7: USD/INR CHARTS -->
-<div class="charts-section">
-  <div class="pair-label">USD/INR — Charts</div>
-  <div style="max-width:700px;margin:0 auto;">
-    <div class="chart-card">
-      {usdinr_fund_html}
-      <div class="chart-label">Fundamentals</div>
+        <div class="brief-section">
+          <div class="brief-label">POSITIONING (COT)</div>
+          <div class="brief-row">
+            <span class="name">Lev Money</span>
+            <span class="pct" style="color:{color_val(JPY_net)}">{JPY_net_disp}</span>
+            <span class="pct">{ordinal_or_dash(JPY_lev_pct)}</span>
+            <span class="badge-mini {jpy_pos_class}">{jpy_pos_regime}</span>
+          </div>
+          <div class="brief-row">
+            <span class="name">Asset Manager</span>
+            <span class="pct" style="color:{color_val(JPY_am_net)}">{JPY_am_net_disp}</span>
+            <span class="pct">{ordinal_or_dash(JPY_am_pct)}</span>
+            <span class="badge-mini {pos_regime(JPY_am_pct)[1]}">{pos_regime(JPY_am_pct)[0]}</span>
+          </div>
+        </div>
+
+        <div class="brief-section">
+          <div class="brief-label">VOLATILITY & CORRELATION</div>
+          <div class="brief-row">
+            <span class="name">30D Vol</span>
+            <span class="val">{USDJPY_vol30}</span>
+            <span class="pct">{ordinal_or_dash(USDJPY_vol_pct)}</span>
+            <span class="badge-mini {jpy_vol_class}">{jpy_vol_text}</span>
+          </div>
+          <div class="brief-row">
+            <span class="name">60D Corr</span>
+            <span class="pct" style="color:{color_val(USDJPY_corr)}">{USDJPY_corr_fmt}</span>
+            <span></span>
+            <span class="badge-mini {jpy_corr_class}">{jpy_corr_text}</span>
+          </div>
+        </div>
+
+        <div class="brief-section">
+          <div class="brief-label">REGIME READ</div>
+          <div class="brief-text">{jpy_read}</div>
+        </div>
+
+      </div>
+      <div class="brief-right">
+        <div class="carousel-img-area">
+          <img id="chart-usdjpy" alt="">
+          <button class="carousel-arrow carousel-arrow-left" onclick="prevChart('usdjpy')">&lsaquo;</button>
+          <button class="carousel-arrow carousel-arrow-right" onclick="nextChart('usdjpy')">&rsaquo;</button>
+        </div>
+        <div class="chart-label-bar">
+          {_jpy_dots}
+          <span id="label-usdjpy" class="chart-label-text"></span>
+        </div>
+      </div>
     </div>
   </div>
+
+  <div class="card" data-pair="usdinr">
+    <div class="card-header">
+      <span class="ch-pair">USD/INR</span>
+      <span class="ch-price">{USDINR}</span>
+      <span class="ch-1d" style="color:{color_val(USDINR_1D)}">{fmt_pct(USDINR_1D)}</span>
+      <span class="ch-12m-label">12M:</span>
+      <span class="ch-12m" style="color:{color_val(USDINR_12M)}">{fmt_pct(USDINR_12M)}</span>
+      <span class="ch-badge badge-neutral-card">RATE DIFF ONLY</span>
+    </div>
+    <div class="card-body">
+      <div class="brief-left">
+
+        <div class="brief-section">
+          <div class="brief-label">RATE DIFFERENTIALS</div>
+          <div class="brief-row">
+            <span class="name">US-IN 10Y</span>
+            <span class="val">{US_IN_10Y_disp}</span>
+            <span class="pct" style="color:{color_val(US_IN_10Y_12M, reverse=True)}">{fmt_pct(US_IN_10Y_12M, suffix='pp')}</span>
+          </div>
+          <div class="brief-row">
+            <span class="name">US-IN Policy</span>
+            <span class="val">{US_IN_pol_disp}</span>
+            <span class="pct" style="color:{color_val(US_IN_pol_12M, reverse=True)}">{fmt_pct(US_IN_pol_12M, suffix='pp')}</span>
+          </div>
+        </div>
+
+        <div class="brief-section">
+          <div class="brief-label">POSITIONING (COT)</div>
+          <div class="brief-muted">FPI proxy unavailable</div>
+        </div>
+
+        <div class="brief-section">
+          <div class="brief-label">VOLATILITY & CORRELATION</div>
+          <div class="brief-row">
+            <span class="name">30D Vol</span>
+            <span class="val">—</span>
+            <span class="pct">—</span>
+            <span class="badge-mini badge-neutral">—</span>
+          </div>
+        </div>
+
+        <div class="brief-section">
+          <div class="brief-label">REGIME READ</div>
+          <div class="brief-text">{inr_read}</div>
+        </div>
+
+      </div>
+      <div class="brief-right">
+        <div class="carousel-img-area">
+          <img id="chart-usdinr" alt="">
+        </div>
+        <div class="chart-label-bar">
+          {_inr_dots}
+          <span id="label-usdinr" class="chart-label-text"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- FOOTER -->
 <div class="footer">
-  <span>G10 FX Regime Detection Framework — Shreyash Sakhare</span>
-  <span>Data: FRED · ECB · Japan MOF · RBI/FRED · CFTC · Yahoo Finance</span>
-</div>
-
-<div class="lightbox" id="lightbox" onclick="closeLightbox()">
-  <img id="lightbox-img" src="">
+  Data: FRED &middot; ECB SDW &middot; Japan MOF &middot; CFTC &middot; Yahoo Finance | G10 FX Regime Detection Framework &mdash; Shreyash Sakhare
 </div>
 
 <script>
-function openLightbox(img) {{
-    document.getElementById('lightbox-img').src = img.src;
-    document.getElementById('lightbox').classList.add('active');
+const charts = {{
+  eurusd: {_js_eurusd},
+  usdjpy: {_js_usdjpy},
+  usdinr: {_js_usdinr}
+}};
+const state = {{ eurusd: 0, usdjpy: 0, usdinr: 0 }};
+let hoveredPair = null;
+
+function showChart(pair, index) {{
+  const arr = charts[pair];
+  if (!arr || arr.length === 0) return;
+  index = ((index % arr.length) + arr.length) % arr.length;
+  state[pair] = index;
+  document.getElementById('chart-' + pair).src = arr[index][0];
+  document.getElementById('label-' + pair).textContent = arr[index][1];
+  for (let i = 0; i < arr.length; i++) {{
+    const dot = document.getElementById('dot-' + pair + '-' + i);
+    if (!dot) continue;
+    if (i === index) {{
+      dot.innerHTML = '&#9679;';
+      dot.style.color = '#00d4aa';
+    }} else {{
+      dot.innerHTML = '&#9675;';
+      dot.style.color = '#333';
+    }}
+  }}
 }}
-function closeLightbox() {{
-    document.getElementById('lightbox').classList.remove('active');
+
+function prevChart(pair) {{ showChart(pair, state[pair] - 1); }}
+function nextChart(pair) {{ showChart(pair, state[pair] + 1); }}
+
+function initCarousels() {{
+  ['eurusd', 'usdjpy', 'usdinr'].forEach(function(pair) {{
+    showChart(pair, 0);
+    const card = document.querySelector('[data-pair="' + pair + '"]');
+    if (card) {{
+      card.addEventListener('mouseenter', function() {{ hoveredPair = pair; }});
+      card.addEventListener('mouseleave', function() {{ hoveredPair = null; }});
+    }}
+  }});
 }}
+
 document.addEventListener('keydown', function(e) {{
-    if (e.key === 'Escape') closeLightbox();
+  if (!hoveredPair) return;
+  if (e.key === 'ArrowLeft')  prevChart(hoveredPair);
+  if (e.key === 'ArrowRight') nextChart(hoveredPair);
 }});
+
+document.addEventListener('DOMContentLoaded', initCarousels);
 </script>
 </body>
 </html>"""

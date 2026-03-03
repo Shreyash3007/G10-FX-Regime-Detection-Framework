@@ -198,6 +198,30 @@ def build_and_save(price_df, yield_monthly, fpi_df, fpi_status):
                     master["USDINR"] / master["USDINR"].shift(days) - 1
                 ) * 100
 
+        # 12M change for US-IN spreads — windowed search to handle monthly source gaps
+        for col in ("US_IN_10Y_spread", "US_IN_policy_spread"):
+            chg_col = f"{col}_chg_12M"
+            if col in master.columns:
+                s = master[col]
+                chg = pd.Series(index=master.index, dtype=float)
+                for pos in range(len(s)):
+                    curr = s.iloc[pos]
+                    if pd.isna(curr):
+                        continue
+                    target = pos - 252
+                    if target < 0:
+                        continue
+                    # search ±10 rows around the 252-row mark for nearest non-NaN
+                    lo = max(0, target - 10)
+                    hi = min(len(s) - 1, target + 10)
+                    window = s.iloc[lo:hi + 1].dropna()
+                    if len(window) == 0:
+                        continue
+                    # pick the row closest to target position
+                    best_idx = min(window.index, key=lambda d: abs(s.index.get_loc(d) - target))
+                    chg.iloc[pos] = curr - s[best_idx]
+                master[chg_col] = chg
+
         master.to_csv(master_path)
         print(f"    merged into: {master_path}  ({master.shape[1]} cols total)")
 
