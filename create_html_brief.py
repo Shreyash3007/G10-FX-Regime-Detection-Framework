@@ -646,6 +646,7 @@ body {{
     object-fit: contain;
     padding: 4px;
     display: block;
+    cursor: zoom-in;
 }}
 .carousel-arrow {{
     position: absolute;
@@ -703,26 +704,32 @@ body {{
     font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 1px;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 }}
 .brief-row {{
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    gap: 10px;
     line-height: 1.35;
-    white-space: nowrap;
+    margin-top: 4px;
 }}
 .brief-row .name {{
+    width: 140px;
+    flex-shrink: 0;
     color: #888;
     font-size: 11px;
+    white-space: nowrap;
 }}
 .brief-row .val {{
-    color: #fff;
+    width: 80px;
+    flex-shrink: 0;
+    text-align: right;
+    color: #ffffff;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 600;
 }}
 .brief-row .pct {{
+    flex: 1;
+    text-align: right;
     font-size: 11px;
 }}
 .badge-mini {{
@@ -851,7 +858,7 @@ body {{
       </div>
       <div class="brief-right">
         <div class="carousel-img-area">
-          <img id="chart-eurusd" alt="">
+          <img id="chart-eurusd" alt="" title="Click to enlarge" onclick="openLightbox(this)">
           <button class="carousel-arrow carousel-arrow-left" onclick="prevChart('eurusd')">&lsaquo;</button>
           <button class="carousel-arrow carousel-arrow-right" onclick="nextChart('eurusd')">&rsaquo;</button>
         </div>
@@ -929,7 +936,7 @@ body {{
       </div>
       <div class="brief-right">
         <div class="carousel-img-area">
-          <img id="chart-usdjpy" alt="">
+          <img id="chart-usdjpy" alt="" title="Click to enlarge" onclick="openLightbox(this)">
           <button class="carousel-arrow carousel-arrow-left" onclick="prevChart('usdjpy')">&lsaquo;</button>
           <button class="carousel-arrow carousel-arrow-right" onclick="nextChart('usdjpy')">&rsaquo;</button>
         </div>
@@ -990,7 +997,7 @@ body {{
       </div>
       <div class="brief-right">
         <div class="carousel-img-area">
-          <img id="chart-usdinr" alt="">
+          <img id="chart-usdinr" alt="" title="Click to enlarge" onclick="openLightbox(this)">
         </div>
         <div class="chart-label-bar">
           {_inr_dots}
@@ -1051,13 +1058,87 @@ function initCarousels() {{
 }}
 
 document.addEventListener('keydown', function(e) {{
+  if (e.key === 'Escape') {{ closeLightbox(); return; }}
   if (!hoveredPair) return;
   if (e.key === 'ArrowLeft')  prevChart(hoveredPair);
   if (e.key === 'ArrowRight') nextChart(hoveredPair);
 }});
 
-document.addEventListener('DOMContentLoaded', initCarousels);
+// ── Lightbox ──────────────────────────────────────────────────────────────
+let lbScale = 1, lbTX = 0, lbTY = 0;
+let lbDragging = false, lbDragSX = 0, lbDragSY = 0, lbDragTX0 = 0, lbDragTY0 = 0;
+let _lb = null, _lbImg = null;
+
+function _applyLbTransform() {{
+  _lbImg.style.transform = 'scale(' + lbScale + ') translate(' + lbTX + 'px,' + lbTY + 'px)';
+}}
+
+function openLightbox(img) {{
+  lbScale = 1; lbTX = 0; lbTY = 0;
+  _lbImg.src = img.src;
+  _applyLbTransform();
+  _lb.style.display = 'flex';
+}}
+
+function closeLightbox() {{
+  _lb.style.display = 'none';
+  lbScale = 1; lbTX = 0; lbTY = 0;
+  _applyLbTransform();
+}}
+
+function initLightbox() {{
+  _lb    = document.getElementById('lightbox');
+  _lbImg = document.getElementById('lightbox-img');
+
+  _lb.addEventListener('click', function(e) {{
+    if (e.target === _lb) closeLightbox();
+  }});
+  document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
+
+  _lb.addEventListener('wheel', function(e) {{
+    e.preventDefault();
+    lbScale += e.deltaY < 0 ? 0.15 : -0.15;
+    lbScale = Math.min(5, Math.max(1, lbScale));
+    if (lbScale === 1) {{ lbTX = 0; lbTY = 0; }}
+    _applyLbTransform();
+  }}, {{ passive: false }});
+
+  _lbImg.addEventListener('mousedown', function(e) {{
+    if (lbScale <= 1) return;
+    lbDragging = true;
+    lbDragSX = e.clientX; lbDragSY = e.clientY;
+    lbDragTX0 = lbTX;     lbDragTY0 = lbTY;
+    _lbImg.style.cursor = 'grabbing';
+    e.preventDefault();
+  }});
+}}
+
+document.addEventListener('mousemove', function(e) {{
+  if (!lbDragging) return;
+  lbTX = lbDragTX0 + (e.clientX - lbDragSX) / lbScale;
+  lbTY = lbDragTY0 + (e.clientY - lbDragSY) / lbScale;
+  _applyLbTransform();
+}});
+
+document.addEventListener('mouseup', function() {{
+  if (!lbDragging) return;
+  lbDragging = false;
+  if (_lbImg) _lbImg.style.cursor = lbScale > 1 ? 'grab' : 'zoom-in';
+}});
+
+document.addEventListener('DOMContentLoaded', function() {{
+  initCarousels();
+  initLightbox();
+}});
 </script>
+
+<!-- LIGHTBOX -->
+<div id="lightbox" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:1000;cursor:zoom-out;align-items:center;justify-content:center;">
+  <img id="lightbox-img" style="max-width:92vw;max-height:92vh;object-fit:contain;cursor:grab;border:1px solid #2a2a2a;border-radius:4px;transform-origin:center;transition:transform 0.1s;">
+  <div id="lightbox-close" style="position:fixed;top:16px;right:20px;color:#888;font-size:20px;cursor:pointer;background:rgba(0,0,0,0.6);padding:4px 10px;border-radius:3px;border:1px solid #333;">&#x2715;</div>
+  <div id="lightbox-hint" style="position:fixed;bottom:16px;color:#555;font-size:11px;">scroll to zoom &middot; click outside to close</div>
+</div>
+
 </body>
 </html>"""
 
