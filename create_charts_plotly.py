@@ -519,10 +519,10 @@ def build_positioning_chart(pair):
         row=1, col=1, secondary_y=True,
     )
     
-    # Horizontal zones and lines for leveraged money
-    fig.add_hrect(y0=80, y1=100, fillcolor='rgba(255,68,68,0.07)', 
+    # Horizontal zones and lines for leveraged money (DIAGNOSTIC 3: reduced opacity 0.07→0.03)
+    fig.add_hrect(y0=80, y1=100, fillcolor='rgba(255,68,68,0.03)', 
                   line_width=0, row=1, col=1, secondary_y=True)
-    fig.add_hrect(y0=0, y1=20, fillcolor='rgba(0,212,170,0.07)', 
+    fig.add_hrect(y0=0, y1=20, fillcolor='rgba(0,212,170,0.03)', 
                   line_width=0, row=1, col=1, secondary_y=True)
     fig.add_hline(y=80, line_color='#ff4444', line_dash='dash', line_width=1, 
                   row=1, col=1, secondary_y=True)
@@ -565,10 +565,10 @@ def build_positioning_chart(pair):
         row=2, col=1, secondary_y=True,
     )
     
-    # Horizontal zones and lines for asset manager
-    fig.add_hrect(y0=80, y1=100, fillcolor='rgba(255,68,68,0.07)', 
+    # Horizontal zones and lines for asset manager (DIAGNOSTIC 3: reduced opacity 0.07→0.03)
+    fig.add_hrect(y0=80, y1=100, fillcolor='rgba(255,68,68,0.03)', 
                   line_width=0, row=2, col=1, secondary_y=True)
-    fig.add_hrect(y0=0, y1=20, fillcolor='rgba(0,212,170,0.07)', 
+    fig.add_hrect(y0=0, y1=20, fillcolor='rgba(0,212,170,0.03)', 
                   line_width=0, row=2, col=1, secondary_y=True)
     fig.add_hline(y=80, line_color='#ff4444', line_dash='dash', line_width=1, 
                   row=2, col=1, secondary_y=True)

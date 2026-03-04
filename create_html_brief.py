@@ -103,51 +103,26 @@ def generate_html_brief():
     with open(brief_file, 'r', encoding='utf-8') as f:
         html_content = f.read()
     
-    # FIX 3: Change overflow:hidden to overflow:visible in CSS for .chart-pane
+    # DIAGNOSTIC 2 FIX: Change CSS from display:none to visibility:hidden (keeps element in layout)
     html_content = html_content.replace(
-        '.chart-pane {\n    display: none;\n    width: 100%;\n    overflow: hidden;\n}',
-        '.chart-pane {\n    display: none;\n    width: 100%;\n    overflow: visible;\n}'
+        '.chart-pane {\n    display: none;\n    width: 100%;\n    overflow: visible;\n}',
+        '.chart-pane {\n    width: 100%;\n    overflow: visible;\n}'
     )
     
-    # FIX 1: Replace the tab-click event handler with one that uses setTimeout
+    # DIAGNOSTIC 2 FIX: Convert inline styles from display:block/none to visibility:visible/hidden
+    # First pane (initially visible)
+    html_content = html_content.replace(
+        'style="display:block; width:100%;"',
+        'style="visibility:visible; position:relative; pointer-events:auto; width:100%;"'
+    )
+    # Hidden panes
+    html_content = html_content.replace(
+        'style="display:none; width:100%;"',
+        'style="visibility:hidden; position:absolute; pointer-events:none; width:100%;"'
+    )
+    
+    # DIAGNOSTIC 2 FIX: Replace tab handler to use visibility:hidden/visible instead of display:none/block
     old_tab_handler = '''document.querySelectorAll('.chart-tab').forEach(tab => {
-  tab.addEventListener('click', function() {
-    const pair = this.dataset.pair;
-    const tabIdx = this.dataset.tab;
-    
-    // deactivate all tabs for this pair
-    document.querySelectorAll(
-      `.chart-tab[data-pair="${pair}"]`
-    ).forEach(t => t.classList.remove('active'));
-    
-    // hide all panes for this pair
-    document.querySelectorAll(
-      `.chart-pane[data-pair="${pair}"]`
-    ).forEach(p => {
-      p.style.display = 'none';
-    });
-    
-    // activate clicked tab
-    this.classList.add('active');
-    
-    // show corresponding pane
-    document.querySelector(
-      `.chart-pane[data-pair="${pair}"][data-pane="${tabIdx}"]`
-    ).style.display = 'block';
-
-    // trigger plotly resize after browser has laid out the newly visible pane
-    requestAnimationFrame(() => {
-      const plotlyDiv = document.querySelector(
-        `.chart-pane[data-pair="${pair}"][data-pane="${tabIdx}"] .js-plotly-plot`
-      );
-      if (plotlyDiv) {
-        Plotly.relayout(plotlyDiv, {autosize: true});
-      }
-    });
-  });
-});'''
-
-    new_tab_handler = '''document.querySelectorAll('.chart-tab').forEach(tab => {
   tab.addEventListener('click', function() {
     const pair = this.dataset.pair;
     const tabIdx = this.dataset.tab;
@@ -185,6 +160,58 @@ def generate_html_brief():
 });
 
 // FIX 2: Resize first visible chart on page load
+window.addEventListener('load', function() {
+  document.querySelectorAll(
+    '.chart-pane[data-pane="0"]'
+  ).forEach(function(pane) {
+    const plots = pane.querySelectorAll('.plotly-graph-div');
+    plots.forEach(function(plot) {
+      Plotly.relayout(plot, {autosize: true});
+    });
+  });
+});'''
+
+    new_tab_handler = '''document.querySelectorAll('.chart-tab').forEach(tab => {
+  tab.addEventListener('click', function() {
+    const pair = this.dataset.pair;
+    const tabIdx = this.dataset.tab;
+    
+    // deactivate all tabs for this pair
+    document.querySelectorAll(
+      `.chart-tab[data-pair="${pair}"]`
+    ).forEach(t => t.classList.remove('active'));
+    
+    // hide all panes for this pair (DIAGNOSTIC 2: use visibility:hidden instead of display:none)
+    document.querySelectorAll(
+      `.chart-pane[data-pair="${pair}"]`
+    ).forEach(p => {
+      p.style.visibility = 'hidden';
+      p.style.position = 'absolute';
+      p.style.pointerEvents = 'none';
+    });
+    
+    // activate clicked tab
+    this.classList.add('active');
+    
+    // show corresponding pane (DIAGNOSTIC 2: use visibility:visible instead of display:block)
+    const pane = document.querySelector(
+      `.chart-pane[data-pair="${pair}"][data-pane="${tabIdx}"]`
+    );
+    pane.style.visibility = 'visible';
+    pane.style.position = 'relative';
+    pane.style.pointerEvents = 'auto';
+
+    // Trigger plotly resize after pane is visible
+    setTimeout(function() {
+      const plots = pane.querySelectorAll('.plotly-graph-div');
+      plots.forEach(function(plot) {
+        Plotly.relayout(plot, {autosize: true});
+      });
+    }, 50);
+  });
+});
+
+// Resize first visible chart on page load
 window.addEventListener('load', function() {
   document.querySelectorAll(
     '.chart-pane[data-pane="0"]'

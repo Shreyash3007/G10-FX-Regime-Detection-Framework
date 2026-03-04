@@ -1,13 +1,39 @@
+# Environment
 .env
-data/
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Python
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Data & Output (generated, not needed in repo)
+data/
 runs/
 briefs/
-charts/*_fundamentals_*.png
-charts/*_positioning_*.png
-charts/*_volatility_*.png
-charts/fx_regime_dashboard_*.png
-brief_screenshot.png
+charts/
+*.png
+*.jpg
+
+# Temporary files
 tmpclaude-*
-show_b64.py
-screenshot.py
+test_*.py
+proto_*
+prototype_*
+temp_*
+debug_*
+
