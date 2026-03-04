@@ -1,64 +1,7 @@
 import pandas as pd
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
-
-
-# ============================================================================
-# SHARED HELPERS
-# ============================================================================
-
-def _base_layout(height=None):
-    layout = dict(
-        template='plotly_dark',
-        paper_bgcolor='#0d0d0d',
-        plot_bgcolor='#141414',
-        font=dict(family='Inter, system-ui, sans-serif', 
-                  color='#cccccc', size=11),
-        margin=dict(l=50, r=60, t=30, b=30),
-        legend=dict(bgcolor='rgba(0,0,0,0)', borderwidth=0,
-                    font=dict(size=10, color='#888888')),
-        hovermode='x unified',
-        hoverlabel=dict(bgcolor='#1a1a1a', bordercolor='#333333',
-                        font=dict(color='#cccccc', size=11)),
-        dragmode='pan'
-    )
-    if height is not None:
-        layout['height'] = height
-    return layout
-
-
-def _style_axes(fig):
-    fig.update_xaxes(showgrid=True, gridcolor='#1e1e1e', gridwidth=1,
-                     showline=False, zeroline=False,
-                     tickfont=dict(size=10, color='#666666'))
-    fig.update_yaxes(showgrid=True, gridcolor='#1e1e1e', gridwidth=1,
-                     showline=False, zeroline=False,
-                     tickfont=dict(size=10, color='#666666'))
-    return fig
-
-
-def _load_and_filter(pair=None, months=12):
-    df = pd.read_csv('data/latest_with_cot.csv', 
-                     index_col=0, parse_dates=True)
-    df.index = pd.to_datetime(df.index, utc=False).tz_localize(None)
-    df.index = df.index.normalize()
-    
-    today = pd.Timestamp.today().normalize()
-    cutoff = today - pd.DateOffset(months=months)
-    
-    d = df[df.index >= cutoff].copy()
-    d = d.sort_index()
-    d = d[d.index.notna()].copy()
-    d = d[~d.index.duplicated(keep='last')].copy()
-    d.index = d.index.strftime('%Y-%m-%d')
-
-    return d, cutoff, today
-
-
-def _add_annotation(fig, x, y, text, color, row, xref, yref):
-    fig.add_annotation(x=x, y=y, text=text, font=dict(size=9, color=color),
-                       xanchor='left', showarrow=False,
-                       xref=xref, yref=yref)
+from charts.base import _base_layout, _style_axes, _load_and_filter, _add_annotation
 
 
 # ============================================================================

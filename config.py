@@ -1,9 +1,13 @@
 # config.py
 # All configuration lives here. Change settings in one place, affects everything.
 
-# ── DATE RANGE ──────────────────────────────────────────────
+from datetime import datetime
+
+# ── DATES ────────────────────────────────────────────────────
+TODAY      = datetime.today().strftime('%Y-%m-%d')
+TODAY_FMT  = datetime.today().strftime('%A, %d %B %Y')
+DATE_SLUG  = TODAY.replace('-', '')
 START_DATE = "2020-01-01"   # 5 years of history is enough for regime work
-# END_DATE will be set dynamically to today in the pipeline
 
 # ── FX TICKERS (Yahoo Finance format) ───────────────────────
 FX_TICKERS = {
@@ -45,3 +49,62 @@ DIFFERENTIALS = [
     ("US_2Y",  "JP_10Y", "US_JP_10Y_spread"),  # USD vs JPY driver (cross-maturity)
     ("US_2Y",  "JP_2Y",  "US_JP_2Y_spread"),   # USD vs JPY driver (same maturity)
 ]
+
+# ── PAIRS REGISTRY ───────────────────────────────────────────────────────────
+# The single source of truth for all FX pairs in the system.
+# Adding a new pair (e.g. GBPUSD): add one dict here; charts, briefs, and HTML
+# auto-scale from this registry.
+#
+# Keys per pair:
+#   price_col    — column name in latest_with_cot.csv
+#   yahoo_ticker — Yahoo Finance symbol for price fetch
+#   color        — hex colour for chart traces
+#   spread_10y   — rate differential column (10Y cross-maturity)
+#   spread_2y    — rate differential column (2Y same-maturity)
+#   label_10y    — short label for the 10Y spread in charts
+#   label_2y     — short label for the 2Y spread in charts
+#   subtitle     — spread subplot annotation
+#   cot_currency — CFTC currency name (None if no COT data)
+#   chart_tabs   — which tabs to render in the HTML brief
+#   chart_height — pixel height for fundamentals chart (others use fixed heights)
+PAIRS = {
+    "eurusd": dict(
+        price_col    = "EURUSD",
+        yahoo_ticker = "EURUSD=X",
+        color        = "#4da6ff",
+        spread_10y   = "US_DE_10Y_spread",
+        spread_2y    = "US_DE_2Y_spread",
+        label_10y    = "DE 10Y",
+        label_2y     = "DE 2Y",
+        subtitle     = "narrowing = EUR/USD should rise",
+        cot_currency = "EUR",
+        chart_tabs   = ["fundamentals", "positioning", "vol"],
+        chart_height = 400,
+    ),
+    "usdjpy": dict(
+        price_col    = "USDJPY",
+        yahoo_ticker = "JPY=X",
+        color        = "#ff9944",
+        spread_10y   = "US_JP_10Y_spread",
+        spread_2y    = "US_JP_2Y_spread",
+        label_10y    = "JP 10Y",
+        label_2y     = "JP 2Y",
+        subtitle     = "narrowing = USD/JPY should fall",
+        cot_currency = "JPY",
+        chart_tabs   = ["fundamentals", "positioning", "vol"],
+        chart_height = 400,
+    ),
+    "usdinr": dict(
+        price_col    = "USDINR",
+        yahoo_ticker = "USDINR=X",
+        color        = "#e74c3c",
+        spread_10y   = "US_IN_10Y_spread",
+        spread_2y    = "US_IN_policy_spread",
+        label_10y    = "IN 10Y",
+        label_2y     = "IN policy",
+        subtitle     = "negative = India yields higher = INR strength",
+        cot_currency = None,             # no CFTC COT for INR
+        chart_tabs   = ["fundamentals"],  # no positioning or vol tab yet
+        chart_height = 360,
+    ),
+}

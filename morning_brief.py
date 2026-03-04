@@ -8,56 +8,8 @@
 
 import os
 import pandas as pd
-from datetime import datetime
-
-TODAY     = datetime.today().strftime('%Y-%m-%d')
-TODAY_FMT = datetime.today().strftime('%A, %d %B %Y')
-
-
-# -- helpers -------------------------------------------------------------------
-
-def _pct(val):
-    """Format a percentage change with sign and two decimals."""
-    if pd.isna(val):
-        return "  n/a  "
-    return f"{val:>+.2f}%"
-
-
-def _pp(val):
-    """Format a basis point / pp change with sign and two decimals.
-
-    Always show "+0.00pp" instead of "-0.00pp" when rounding yields zero.
-    """
-    if pd.isna(val):
-        return "  n/a  "
-    rounded = round(val, 2)
-    if abs(rounded) < 0.005:
-        return "+0.00pp"
-    return f"{val:>+.2f}pp"
-
-
-def _net(val):
-    """Format net contracts with sign and comma separator."""
-    if pd.isna(val):
-        return "n/a"
-    return f"{val:>+,.0f}"
-
-
-def ordinal(n):
-    """Return a string with the ordinal suffix for an integer.
-
-    Rules:
-    * 11,12,13 -> 'th'
-    * otherwise 1->'st', 2->'nd', 3->'rd', else 'th'
-    """
-    try:
-        n = int(n)
-    except Exception:
-        return str(n)
-    if 11 <= (n % 100) <= 13:
-        return f"{n}th"
-    suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
-    return f"{n}{suffix}"
+from core.utils import ordinal, _pct, _pp, _net
+from config import TODAY, TODAY_FMT
 
 
 def _regime_label(percentile, net):

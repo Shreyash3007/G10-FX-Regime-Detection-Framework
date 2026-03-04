@@ -24,15 +24,9 @@ import zipfile
 import pandas as pd
 from io import BytesIO
 from datetime import datetime
+from core.utils import ordinal
+from config import TODAY
 
-
-def ordinal(n):
-    n = int(n)
-    if 11 <= (n % 100) <= 13:
-        return f"{n}th"
-    return f"{n}{['th','st','nd','rd','th','th','th','th','th','th'][n % 10]}"
-
-TODAY      = datetime.today().strftime('%Y-%m-%d')
 CURRENT_YR = datetime.today().year
 
 # years of history to pull for percentile calculation

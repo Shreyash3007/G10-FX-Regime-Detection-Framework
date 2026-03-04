@@ -1,56 +1,17 @@
 import os
 import glob
-import base64
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
 import sys
-
-TODAY     = datetime.today().strftime('%Y-%m-%d')
-TODAY_FMT = datetime.today().strftime('%A, %d %B %Y')
-DATE_SLUG = TODAY.replace('-', '')
-
-
-def ordinal(n):
-    n = int(n)
-    if 11 <= (n % 100) <= 13:
-        return f"{n}th"
-    return f"{n}{['th','st','nd','rd','th'][min(n%10,4)]}"
-
-
-def embed_image(filepath):
-    if not os.path.exists(filepath):
-        return ""
-    with open(filepath, 'rb') as f:
-        data = base64.b64encode(f.read()).decode('utf-8')
-    return f"data:image/png;base64,{data}"
-
-
-def fmt_pct(val, suffix='%', decimals=2):
-    try:
-        v = float(val)
-        sign = '+' if v >= 0 else ''
-        return f"{sign}{v:.{decimals}f}{suffix}"
-    except:
-        return '—'
-
-
-def color_class(val):
-    try:
-        return 'positive' if float(val) >= 0 else 'negative'
-    except:
-        return ''
+from core.utils import ordinal, embed_image, fmt_pct, color_class
+from config import TODAY, TODAY_FMT, DATE_SLUG
 
 
 # ============================================================================
 # STEP 3B — Import and call chart functions
 # ============================================================================
 
-from create_charts_plotly import (
-    build_fundamentals_chart,
-    build_positioning_chart, 
-    build_vol_correlation_chart
-)
+from charts.registry import CHART_REGISTRY
 import plotly.io as pio
 
 plotly_config = dict(scrollZoom=True, displayModeBar=False)
@@ -69,16 +30,12 @@ def fig_to_div(fig, height=480):
     )
     return f'<div style="width:100%;height:{height}px;overflow:hidden;">{div}</div>'
 
-# Generate all chart divs
-eurusd_fund_div  = fig_to_div(build_fundamentals_chart('eurusd'), 400)
-eurusd_pos_div   = fig_to_div(build_positioning_chart('eurusd'), 480)
-eurusd_vol_div   = fig_to_div(build_vol_correlation_chart('eurusd'), 420)
-
-usdjpy_fund_div  = fig_to_div(build_fundamentals_chart('usdjpy'), 400)
-usdjpy_pos_div   = fig_to_div(build_positioning_chart('usdjpy'), 480)
-usdjpy_vol_div   = fig_to_div(build_vol_correlation_chart('usdjpy'), 420)
-
-usdinr_fund_div  = fig_to_div(build_fundamentals_chart('usdinr'), 360)
+# Build all chart divs from the registry — adding a new pair only requires
+# updating charts/registry.py; no changes needed here.
+CHART_DIVS = {
+    (pair, pane): fig_to_div(builder(pair), height)
+    for (pair, pane), (builder, pair, height) in CHART_REGISTRY.items()
+}
 
 # ============================================================================
 # Load brief data from existing generated brief
@@ -104,17 +61,11 @@ def generate_html_brief():
     with open(brief_file, 'r', encoding='utf-8') as f:
         html_content = f.read()
     
-    # INJECT fresh chart divs — replace each chart-pane's (single-line) content
-    # with the freshly generated div (uses strftime index, fresh data, correct opacity)
+    # INJECT fresh chart divs from registry — loops over ALL registered pairs/panes
     import re
     chart_map = {
-        ('eurusd', '0'): eurusd_fund_div,
-        ('eurusd', '1'): eurusd_pos_div,
-        ('eurusd', '2'): eurusd_vol_div,
-        ('usdjpy', '0'): usdjpy_fund_div,
-        ('usdjpy', '1'): usdjpy_pos_div,
-        ('usdjpy', '2'): usdjpy_vol_div,
-        ('usdinr', '0'): usdinr_fund_div,
+        (pair, str(pane)): div
+        for (pair, pane), div in CHART_DIVS.items()
     }
     for (pair, pane), new_div in chart_map.items():
         if new_div is None:
@@ -150,67 +101,25 @@ def generate_html_brief():
         'style="visibility:hidden; position:absolute; pointer-events:none; width:100%;"'
     )
     
-    # DIAGNOSTIC 2 FIX: Replace tab handler to use visibility:hidden/visible instead of display:none/block
-    old_tab_handler = '''document.querySelectorAll('.chart-tab').forEach(tab => {
+    # ====================================================================
+    # REPLACE the entire last <script> block with definitive tab handler
+    # ====================================================================
+    # Instead of trying to match specific old handler text (which varies
+    # depending on which version is in the archive), find the last <script>
+    # block and replace its content entirely.
+    # ====================================================================
+    import re as _re
+    
+    definitive_handler = r'''
+document.querySelectorAll('.chart-tab').forEach(tab => {
   tab.addEventListener('click', function() {
     const pair = this.dataset.pair;
     const tabIdx = this.dataset.tab;
-    
-    // deactivate all tabs for this pair
+
     document.querySelectorAll(
       `.chart-tab[data-pair="${pair}"]`
     ).forEach(t => t.classList.remove('active'));
-    
-    // hide all panes for this pair
-    document.querySelectorAll(
-      `.chart-pane[data-pair="${pair}"]`
-    ).forEach(p => {
-      p.style.display = 'none';
-    });
-    
-    // activate clicked tab
-    this.classList.add('active');
-    
-    // show corresponding pane
-    document.querySelector(
-      `.chart-pane[data-pair="${pair}"][data-pane="${tabIdx}"]`
-    ).style.display = 'block';
 
-    // FIX 1: Use setTimeout with 50ms delay to give browser time to paint the block element
-    setTimeout(function() {
-      const plots = document.querySelectorAll(
-        `.chart-pane[data-pair="${pair}"][data-pane="${tabIdx}"] .plotly-graph-div`
-      );
-      plots.forEach(function(plot) {
-        Plotly.relayout(plot, {autosize: true});
-      });
-    }, 50);
-  });
-});
-
-// FIX 2: Resize first visible chart on page load
-window.addEventListener('load', function() {
-  document.querySelectorAll(
-    '.chart-pane[data-pane="0"]'
-  ).forEach(function(pane) {
-    const plots = pane.querySelectorAll('.plotly-graph-div');
-    plots.forEach(function(plot) {
-      Plotly.relayout(plot, {autosize: true});
-    });
-  });
-});'''
-
-    new_tab_handler = '''document.querySelectorAll('.chart-tab').forEach(tab => {
-  tab.addEventListener('click', function() {
-    const pair = this.dataset.pair;
-    const tabIdx = this.dataset.tab;
-    
-    // deactivate all tabs for this pair
-    document.querySelectorAll(
-      `.chart-tab[data-pair="${pair}"]`
-    ).forEach(t => t.classList.remove('active'));
-    
-    // hide all panes for this pair (DIAGNOSTIC 2: use visibility:hidden instead of display:none)
     document.querySelectorAll(
       `.chart-pane[data-pair="${pair}"]`
     ).forEach(p => {
@@ -218,11 +127,9 @@ window.addEventListener('load', function() {
       p.style.position = 'absolute';
       p.style.pointerEvents = 'none';
     });
-    
-    // activate clicked tab
+
     this.classList.add('active');
-    
-    // show corresponding pane (DIAGNOSTIC 2: use visibility:visible instead of display:block)
+
     const pane = document.querySelector(
       `.chart-pane[data-pair="${pair}"][data-pane="${tabIdx}"]`
     );
@@ -230,29 +137,59 @@ window.addEventListener('load', function() {
     pane.style.position = 'relative';
     pane.style.pointerEvents = 'auto';
 
-    // Trigger plotly resize after pane is visible
     setTimeout(function() {
-      const plots = pane.querySelectorAll('.plotly-graph-div');
-      plots.forEach(function(plot) {
-        Plotly.relayout(plot, {autosize: true});
+      pane.querySelectorAll('.plotly-graph-div').forEach(function(plot) {
+        Plotly.Plots.resize(plot);
       });
-    }, 50);
+    }, 60);
   });
 });
 
-// Resize first visible chart on page load
 window.addEventListener('load', function() {
-  document.querySelectorAll(
-    '.chart-pane[data-pane="0"]'
-  ).forEach(function(pane) {
-    const plots = pane.querySelectorAll('.plotly-graph-div');
-    plots.forEach(function(plot) {
-      Plotly.relayout(plot, {autosize: true});
-    });
+  document.querySelectorAll('.plotly-graph-div').forEach(function(plot) {
+    if (plot.data) Plotly.Plots.resize(plot);
   });
-});'''
+});
+'''
     
-    html_content = html_content.replace(old_tab_handler, new_tab_handler)
+    # Find the last <script>...</script> block and replace its body
+    last_script = list(_re.finditer(r'(<script>)(.*?)(</script>)', html_content, _re.DOTALL))
+    if last_script:
+        m = last_script[-1]
+        html_content = (html_content[:m.start(2)] + definitive_handler +
+                        html_content[m.end(2):])
+    
+    # ====================================================================
+    # CRITICAL FIX: Defer all Plotly.newPlot calls until window.load
+    # ====================================================================
+    # Plotly's inline <script> tags call Plotly.newPlot() during HTML parsing,
+    # before the browser computes flex layout.  At that moment the container
+    # has width=0 so every chart collapses to a single vertical line.
+    #
+    # Strategy: inject a script RIGHT AFTER the Plotly CDN <script> that
+    # monkey-patches Plotly.newPlot to queue calls; then on window.load
+    # it replays them (container now has its real pixel width) and
+    # restores the original function.
+    # ====================================================================
+    
+    deferred_script = '''<script>
+(function(){
+  var _orig = Plotly.newPlot.bind(Plotly);
+  var _q = [];
+  Plotly.newPlot = function(){_q.push(Array.prototype.slice.call(arguments)); return Promise.resolve();};
+  window.addEventListener("load", function(){
+    Plotly.newPlot = _orig;
+    _q.forEach(function(a){_orig.apply(Plotly, a);});
+  });
+})();
+</script>'''
+    
+    # Insert right after the Plotly CDN script tag
+    html_content = html_content.replace(
+        '</script>\n<style>',
+        '</script>\n' + deferred_script + '\n<style>',
+        1  # only the first occurrence (CDN script is first)
+    )
     
     # Save the modified brief
     os.makedirs('briefs', exist_ok=True)
