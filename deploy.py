@@ -31,9 +31,14 @@ def deploy():
     else:
         BRIEF_SOURCE_FINAL = BRIEF_SOURCE
 
-    # copy to index.html
-    shutil.copy2(BRIEF_SOURCE_FINAL, DEPLOY_TARGET)
-    print(f"copied {BRIEF_SOURCE_FINAL} -> {DEPLOY_TARGET}")
+    # copy to index.html, fixing iframe paths:
+    # briefs use ../charts/ (brief is in briefs/ subdir) but index.html is at root
+    with open(BRIEF_SOURCE_FINAL, 'r', encoding='utf-8') as f:
+        html = f.read()
+    html = html.replace('src="../charts/', 'src="charts/')
+    with open(DEPLOY_TARGET, 'w', encoding='utf-8') as f:
+        f.write(html)
+    print(f"copied {BRIEF_SOURCE_FINAL} -> {DEPLOY_TARGET} (patched iframe paths)")
 
     # git add, commit, push
     try:

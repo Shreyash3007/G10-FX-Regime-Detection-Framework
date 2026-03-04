@@ -25,9 +25,11 @@ build/
 data/
 runs/
 briefs/
-charts/
 *.png
 *.jpg
+
+# Individual chart files are pushed to GitHub for GitHub Pages
+# charts/ folder is intentionally tracked
 
 # Temporary files
 tmpclaude-*
