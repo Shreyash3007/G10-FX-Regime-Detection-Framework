@@ -38,20 +38,19 @@ def _style_axes(fig):
     return fig
 
 
-def _load_and_filter(pair):
-    """Load data and filter to last 12 months"""
-    d = pd.read_csv('data/latest_with_cot.csv', index_col=0, parse_dates=True)
+def _load_and_filter(pair=None, months=12):
+    df = pd.read_csv('data/latest_with_cot.csv', 
+                     index_col=0, parse_dates=True)
+    df.index = pd.to_datetime(df.index, utc=False).tz_localize(None)
+    df.index = df.index.normalize()
     
-    # Get today and cutoff dates
     today = pd.Timestamp.today().normalize()
-    cutoff = today - pd.DateOffset(months=12)
-    cutoff_str = cutoff.strftime('%Y-%m-%d')
-    today_str = today.strftime('%Y-%m-%d')
+    cutoff = today - pd.DateOffset(months=months)
     
-    # Filter data
-    d_filtered = d[d.index >= cutoff].copy()
+    d = df[df.index >= cutoff].copy()
+    d = d.sort_index()
     
-    return d_filtered, cutoff_str, today_str
+    return d, cutoff, today
 
 
 def _add_annotation(fig, x, y, text, color, row, xref, yref):
@@ -295,8 +294,15 @@ def build_fundamentals_chart(pair):
     PAIR = pair.upper()
     
     # Load and filter data - use 'd' for filtered data
-    d, cutoff_str, today_str = _load_and_filter(pair)
+    d, cutoff, today = _load_and_filter(pair)
     d = d[d[cfg['price_col']].notna()].copy()
+    
+    # Clean USDINR outliers
+    if pair == 'usdinr':
+        price_col = cfg['price_col']
+        q_low = d[price_col].quantile(0.01)
+        q_high = d[price_col].quantile(0.99)
+        d = d[(d[price_col] >= q_low) & (d[price_col] <= q_high)]
     
     # Use 3 subplots for EUR/USD and USD/JPY (includes correlation), 2 for USDINR
     has_correlation = (pair != 'usdinr')
@@ -376,39 +382,24 @@ def build_fundamentals_chart(pair):
     fig.update_layout(**_base_layout(height=480))
     _style_axes(fig)
     
-    # FIX: Set x-axis ranges for all subplots individually
+    # FIX: Set x-axis ranges for all subplots individually using Timestamp objects
     if has_correlation:
         fig.update_layout(
-            xaxis=dict(range=[cutoff_str, today_str]),
-            xaxis2=dict(range=[cutoff_str, today_str]),
-            xaxis3=dict(range=[cutoff_str, today_str]),
+            xaxis=dict(range=[cutoff, today]),
+            xaxis2=dict(range=[cutoff, today]),
+            xaxis3=dict(range=[cutoff, today]),
         )
     else:
         fig.update_layout(
-            xaxis=dict(range=[cutoff_str, today_str]),
-            xaxis2=dict(range=[cutoff_str, today_str]),
+            xaxis=dict(range=[cutoff, today]),
+            xaxis2=dict(range=[cutoff, today]),
         )
     
-    # FIX: Explicit y-axis ranges from filtered data
-    # Price panel (yaxis)
-    p_min = float(d[cfg['price_col']].min())
-    p_max = float(d[cfg['price_col']].max())
-    pad = (p_max - p_min) * 0.05
-    fig.update_layout(yaxis=dict(range=[p_min-pad, p_max+pad]))
-    
-    # Spread panel (yaxis2)
-    all_spreads = pd.concat([
-        d[cfg['spread_10y']].dropna(), 
-        d[cfg['spread_2y']].dropna()
-    ])
-    s_min = float(all_spreads.min())
-    s_max = float(all_spreads.max())
-    s_pad = (s_max - s_min) * 0.1
-    fig.update_layout(yaxis2=dict(range=[s_min-s_pad, s_max+s_pad]))
-    
-    # Correlation panel (yaxis3) - only for pairs with correlation
+    # FIX: Use autorange for y-axes - Plotly will calculate correct range for visible x window
+    fig.update_yaxes(autorange=True, row=1, col=1)
+    fig.update_yaxes(autorange=True, row=2, col=1)
     if has_correlation:
-        fig.update_layout(yaxis3=dict(range=[-1, 1]))
+        fig.update_yaxes(autorange=True, row=3, col=1)
     
     # --- Inline end-labels ---
     last_x = d.index[-1]
@@ -511,7 +502,7 @@ def build_positioning_chart(pair):
     cfg = configs[pair]
     
     # Load data
-    d, cutoff_str, today_str = _load_and_filter(pair)
+    d, cutoff, today = _load_and_filter(pair)
     d = d[d[cfg['net_col']].notna()]
     
     fig = make_subplots(
@@ -619,10 +610,10 @@ def build_positioning_chart(pair):
     fig.update_layout(**_base_layout(height=560))
     _style_axes(fig)
     
-    # FIX: Set x-axis ranges for both subplots individually
+    # FIX: Set x-axis ranges for both subplots individually using Timestamp objects
     fig.update_layout(
-        xaxis=dict(range=[cutoff_str, today_str]),
-        xaxis2=dict(range=[cutoff_str, today_str]),
+        xaxis=dict(range=[cutoff, today]),
+        xaxis2=dict(range=[cutoff, today]),
     )
     
     # FIX: Set secondary y-axis ranges explicitly (0-100)
@@ -797,7 +788,7 @@ def build_vol_correlation_chart(pair):
     PAIR = pair.upper()
     
     # Load and filter data
-    d, cutoff_str, today_str = _load_and_filter(pair)
+    d, cutoff, today = _load_and_filter(pair)
     d = d[d[cfg['vol_col']].notna()]
     
     fig = make_subplots(
@@ -881,10 +872,10 @@ def build_vol_correlation_chart(pair):
     fig.update_layout(**_base_layout(height=460))
     _style_axes(fig)
     
-    # FIX: Set x-axis ranges for both subplots
+    # FIX: Set x-axis ranges for both subplots using Timestamp objects
     fig.update_layout(
-        xaxis=dict(range=[cutoff_str, today_str]),
-        xaxis2=dict(range=[cutoff_str, today_str])
+        xaxis=dict(range=[cutoff, today]),
+        xaxis2=dict(range=[cutoff, today])
     )
     
     # FIX: Fix correlation panel y-axis range (yaxis3 for subplot 2)
