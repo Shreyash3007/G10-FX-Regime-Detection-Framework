@@ -623,7 +623,6 @@ body {{
     background: #0d0d0d;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
 }}
 .chart-tab-bar {{
     height: 36px;
@@ -662,13 +661,9 @@ body {{
 }}
 .chart-pane {{
     display: none;
-    height: 100%;
-    overflow: auto;
-}}
-.chart-pane .js-plotly-plot {{
-    width: 100% !important;
-    height: 100% !important;
-    min-height: 480px;
+    width: 100%;
+    height: 480px;
+    overflow: hidden;
 }}
 .brief-section {{
     border-top: 1px solid #1e1e1e;
@@ -1042,7 +1037,7 @@ document.querySelectorAll('.chart-tab').forEach(tab => {{
       Plotly.relayout(plotlyDiv, {{autosize: true}});
     }}
   }});
-}});
+}};
 </script>
 
 </body>

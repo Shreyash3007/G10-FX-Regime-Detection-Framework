@@ -7,14 +7,14 @@ import plotly.graph_objects as go
 # SHARED HELPERS
 # ============================================================================
 
-def _base_layout(height=520):
-    return dict(
+def _base_layout(height=None):
+    layout = dict(
         template='plotly_dark',
         paper_bgcolor='#0d0d0d',
         plot_bgcolor='#141414',
         font=dict(family='Inter, system-ui, sans-serif', 
                   color='#cccccc', size=11),
-        height=height,
+        autosize=True,
         margin=dict(l=50, r=60, t=30, b=30),
         legend=dict(bgcolor='rgba(0,0,0,0)', borderwidth=0,
                     font=dict(size=10, color='#888888')),
@@ -23,6 +23,9 @@ def _base_layout(height=520):
                         font=dict(color='#cccccc', size=11)),
         dragmode='pan'
     )
+    if height is not None:
+        layout['height'] = height
+    return layout
 
 
 def _style_axes(fig):
@@ -343,11 +346,27 @@ def build_fundamentals_chart(pair):
     # All pairs now use only two subplots.
     
     # --- Apply theme ---
-    fig.update_layout(**_base_layout())
+    fig.update_layout(**_base_layout(height=480))
     _style_axes(fig)
     
     # Set x-axis range
     fig.update_xaxes(range=[cutoff_str, today_str])
+    
+    # FIX 2: Set y-axis ranges with padding
+    # Price panel (row 1)
+    price_min = df[cfg['price_col']].min()
+    price_max = df[cfg['price_col']].max()
+    price_pad = (price_max - price_min) * 0.05
+    fig.update_yaxes(range=[price_min - price_pad, price_max + price_pad], 
+                     row=1, col=1)
+    
+    # Spread panel (row 2)
+    spread_vals = pd.concat([df[cfg['spread_10y']].dropna(), df[cfg['spread_2y']].dropna()])
+    spread_min = spread_vals.min()
+    spread_max = spread_vals.max()
+    spread_pad = (spread_max - spread_min) * 0.1
+    fig.update_yaxes(range=[spread_min - spread_pad, spread_max + spread_pad],
+                     row=2, col=1)
     
     # --- Inline end-labels ---
     last_x = df.index[-1]
@@ -462,8 +481,9 @@ def build_positioning_chart(pair):
             y=df[cfg['net_col']],
             marker_color=leveraged_bar_colors,
             marker_opacity=0.7,
-            marker_line_width=0,
-            width=5 * 24 * 60 * 60 * 1000,  # 5 days in milliseconds
+            marker_line_width=0.5,
+            marker_line_color='#0d0d0d',
+            width=3.5 * 24 * 3600 * 1000,  # 3.5 days in milliseconds
             name='Leveraged Net',
             showlegend=False,
             hovertemplate='%{x|%d %b %Y}<br>Net: %{y:+,.0f} contracts<extra></extra>',
@@ -507,8 +527,9 @@ def build_positioning_chart(pair):
             y=df[cfg['am_net_col']],
             marker_color=am_bar_colors,
             marker_opacity=0.7,
-            marker_line_width=0,
-            width=5 * 24 * 60 * 60 * 1000,  # 5 days in milliseconds
+            marker_line_width=0.5,
+            marker_line_color='#0d0d0d',
+            width=3.5 * 24 * 3600 * 1000,  # 3.5 days in milliseconds
             name='AM Net',
             showlegend=False,
             hovertemplate='%{x|%d %b %Y}<br>Net: %{y:+,.0f} contracts<extra></extra>',
@@ -801,7 +822,7 @@ def build_vol_correlation_chart(pair):
     fig.update_yaxes(range=[-1, 1], row=2, col=1)
     
     # --- Apply theme ---
-    fig.update_layout(**_base_layout())
+    fig.update_layout(**_base_layout(height=460))
     _style_axes(fig)
     
     # Set x-axis range
@@ -991,84 +1012,5 @@ def build_vol_chart(pair):
     )
     
     # --- Apply theme ---
-    fig.update_layout(**_base_layout())
+    fig.update_layout(**_base_layout(height=500))
     _style_axes(fig)
-    
-    # Set x-axis range
-    fig.update_xaxes(range=[cutoff_str, today_str])
-    
-    # --- Inline end-labels ---
-    last_x = df.index[-1]
-    latest_vol = df[cfg['vol_col']].iloc[-1]
-    latest_pct = df[cfg['pct_col']].iloc[-1]
-    
-    inline_annotations = [
-        # Volatility value
-        dict(
-            x=last_x,
-            y=latest_vol,
-            text=f"  {latest_vol:.2f}%",
-            xref='x', yref='y',
-            xanchor='left', showarrow=False,
-            font=dict(size=9, color=cfg['color']),
-        ),
-        # Percentile value
-        dict(
-            x=last_x,
-            y=latest_pct,
-            text=f"  {latest_pct:.0f}th pct",
-            xref='x', yref='y',
-            xanchor='left', showarrow=False,
-            font=dict(size=9, color='#ffffff'),
-        ),
-    ]
-    
-    # --- Panel titles ---
-    panel_titles = [
-        dict(
-            text="30D REALIZED VOLATILITY (ANNUALIZED)",
-            x=0.01, y=1.0,
-            xref='paper', yref='paper',
-            xanchor='left', yanchor='top',
-            font=dict(size=9, color='#555555'),
-            showarrow=False,
-        ),
-        dict(
-            text="CROSS-PAIR VOL COMPARISON",
-            x=0.01, y=0.4,
-            xref='paper', yref='paper',
-            xanchor='left', yanchor='top',
-            font=dict(size=9, color='#555555'),
-            showarrow=False,
-        ),
-    ]
-    
-    fig.update_layout(
-        annotations=fig.layout.annotations + tuple(inline_annotations) + tuple(panel_titles)
-    )
-    
-    return fig
-
-
-# ============================================================================
-# MAIN BLOCK - TEST ALL FUNCTIONS
-# ============================================================================
-
-if __name__ == "__main__":
-    import plotly.io as pio
-    config = dict(scrollZoom=True, displayModeBar=False)
-    
-    for pair in ['eurusd', 'usdjpy', 'usdinr']:
-        fig = build_fundamentals_chart(pair)
-        pio.write_html(fig, f'proto_{pair}_fundamentals.html', config=config)
-        print(f"saved: proto_{pair}_fundamentals.html")
-    
-    for pair in ['eurusd', 'usdjpy']:
-        fig = build_positioning_chart(pair)
-        pio.write_html(fig, f'proto_{pair}_positioning.html', config=config)
-        print(f"saved: proto_{pair}_positioning.html")
-        
-        fig = build_vol_correlation_chart(pair)
-        if fig is not None:
-            pio.write_html(fig, f'proto_{pair}_vol_correlation.html', config=config)
-            print(f"saved: proto_{pair}_vol_correlation.html")
