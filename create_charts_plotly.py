@@ -278,8 +278,8 @@ def build_fundamentals_chart(pair):
             y=d[cfg['spread_10y']],
             mode='lines',
             line=dict(color='#2980b9', width=1.5),
-            name=cfg['label_10y'],
-            showlegend=False,
+            name=f"US\u2013{cfg['label_10y']} spread",
+            showlegend=True,
             hovertemplate='%{x|%d %b %Y}<br>%{y:.2f}%<extra></extra>',
         ),
         row=2, col=1,
@@ -290,8 +290,8 @@ def build_fundamentals_chart(pair):
             y=d[cfg['spread_2y']],
             mode='lines',
             line=dict(color='#e67e22', width=1.5),
-            name=cfg['label_2y'],
-            showlegend=False,
+            name=f"US\u2013{cfg['label_2y']} spread",
+            showlegend=True,
             hovertemplate='%{x|%d %b %Y}<br>%{y:.2f}%<extra></extra>',
         ),
         row=2, col=1,
@@ -302,6 +302,19 @@ def build_fundamentals_chart(pair):
     # --- Apply theme ---
     fig.update_layout(**_base_layout(height=400 if pair != 'usdinr' else 360))
     _style_axes(fig)
+
+    # --- Legend: rate differential lines (top-right of spreads panel) ---
+    fig.update_layout(
+        legend=dict(
+            x=0.99, y=0.43,
+            xanchor='right', yanchor='top',
+            bgcolor='rgba(13,13,13,0.85)',
+            bordercolor='#2a2a2a', borderwidth=1,
+            font=dict(size=9, color='#cccccc'),
+            itemsizing='constant',
+            tracegroupgap=1,
+        )
+    )
     
     # Set x-axis ranges for both subplots
     cutoff_str = cutoff.strftime('%Y-%m-%d')
@@ -520,10 +533,40 @@ def build_positioning_chart(pair):
                   row=2, col=1, secondary_y=True)
     fig.add_hline(y=50, line_color='#333333', line_dash='dot', line_width=1, 
                   row=2, col=1, secondary_y=True)
+
+    # --- Legend proxy traces (no real data — for legend key only) ---
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None], mode='markers',
+        marker=dict(symbol='square', size=9, color='#00d4aa'),
+        name='Net Long (contracts)', showlegend=True,
+    ), row=1, col=1, secondary_y=False)
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None], mode='markers',
+        marker=dict(symbol='square', size=9, color='#ff4444'),
+        name='Net Short (contracts)', showlegend=True,
+    ), row=1, col=1, secondary_y=False)
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None], mode='lines',
+        line=dict(color='#ffffff', width=2),
+        name='Pct Rank (0\u2013100)', showlegend=True,
+    ), row=1, col=1, secondary_y=True)
     
     # --- Apply theme ---
     fig.update_layout(**_base_layout(height=480))
     _style_axes(fig)
+
+    # --- Legend: bottom-left to avoid top-right regime stamp ---
+    fig.update_layout(
+        legend=dict(
+            x=0.01, y=0.01,
+            xanchor='left', yanchor='bottom',
+            bgcolor='rgba(13,13,13,0.85)',
+            bordercolor='#2a2a2a', borderwidth=1,
+            font=dict(size=9, color='#cccccc'),
+            itemsizing='constant',
+            tracegroupgap=1,
+        )
+    )
     
     # Set x-axis ranges for both subplots
     cutoff_str = cutoff.strftime('%Y-%m-%d')
@@ -726,8 +769,8 @@ def build_vol_correlation_chart(pair):
             fill='tozeroy',
             fillcolor=cfg['fill_color'],
             line=dict(color=cfg['color'], width=1.5),
-            name=PAIR,
-            showlegend=False,
+            name=f"30D Vol \u2013 {PAIR} (%)",
+            showlegend=True,
             hovertemplate='%{x|%d %b %Y}<br>%{y:.2f}%<extra></extra>',
         ),
         row=1, col=1, secondary_y=False,
@@ -740,8 +783,8 @@ def build_vol_correlation_chart(pair):
             y=d[cfg['pct_col']],
             mode='lines',
             line=dict(color='#ffffff', width=2),
-            name='Percentile',
-            showlegend=False,
+            name='Pct Rank (0\u2013100)',
+            showlegend=True,
             hovertemplate='%{x|%d %b %Y}<br>%{y:.0f}th<extra></extra>',
         ),
         row=1, col=1, secondary_y=True,
@@ -764,8 +807,8 @@ def build_vol_correlation_chart(pair):
             y=d[cfg['corr_col']],
             mode='lines',
             line=dict(color='#aaaaaa', width=1.5),
-            name='Correlation',
-            showlegend=False,
+            name='Regime Corr (60D)',
+            showlegend=True,
             hovertemplate='%{x|%d %b %Y}<br>%{y:.3f}<extra></extra>',
         ),
         row=2, col=1,
@@ -788,6 +831,19 @@ def build_vol_correlation_chart(pair):
     # --- Apply theme ---
     fig.update_layout(**_base_layout(height=420))
     _style_axes(fig)
+
+    # --- Legend: top-right of vol panel ---
+    fig.update_layout(
+        legend=dict(
+            x=0.99, y=0.99,
+            xanchor='right', yanchor='top',
+            bgcolor='rgba(13,13,13,0.85)',
+            bordercolor='#2a2a2a', borderwidth=1,
+            font=dict(size=9, color='#cccccc'),
+            itemsizing='constant',
+            tracegroupgap=1,
+        )
+    )
     
     # Set x-axis ranges for both subplots
     cutoff_str = cutoff.strftime('%Y-%m-%d')
