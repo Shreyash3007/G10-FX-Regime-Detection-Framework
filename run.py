@@ -13,6 +13,7 @@
 
 import sys
 import os
+import glob
 import shutil
 import subprocess
 import argparse
@@ -49,6 +50,7 @@ def _archive(today_str):
     """Archive run outputs into runs/YYYY-MM-DD/."""
     run_dir = os.path.join('runs', today_str)
     os.makedirs(os.path.join(run_dir, 'data'), exist_ok=True)
+    os.makedirs(os.path.join(run_dir, 'charts'), exist_ok=True)
 
     slug = today_str.replace('-', '')
     file_map = {
@@ -65,7 +67,11 @@ def _archive(today_str):
     if os.path.exists(brief_txt):
         shutil.copy2(brief_txt, os.path.join(run_dir, 'brief.txt'))
 
-    print(f'  archived → runs/{today_str}/')
+    # Copy chart HTML files so the archived brief is self-contained
+    for chart_file in glob.glob('charts/*.html'):
+        shutil.copy2(chart_file, os.path.join(run_dir, 'charts', os.path.basename(chart_file)))
+
+    print(f'  archived -> runs/{today_str}/')
 
 
 def main():
