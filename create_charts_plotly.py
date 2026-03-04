@@ -50,6 +50,7 @@ def _load_and_filter(pair=None, months=12):
     d = d.sort_index()
     d = d[d.index.notna()].copy()
     d = d[~d.index.duplicated(keep='last')].copy()
+    d.index = d.index.strftime('%Y-%m-%d')
 
     return d, cutoff, today
 
@@ -360,11 +361,11 @@ def build_fundamentals_chart(pair):
     _style_axes(fig)
     
     # Set x-axis ranges for both subplots
-    cutoff_iso = cutoff.isoformat()
-    today_iso = today.isoformat()
+    cutoff_str = cutoff.strftime('%Y-%m-%d')
+    today_str = today.strftime('%Y-%m-%d')
     fig.update_layout(
-        xaxis =dict(range=[cutoff_iso, today_iso], type='date'),
-        xaxis2=dict(range=[cutoff_iso, today_iso], type='date'),
+        xaxis =dict(range=[cutoff_str, today_str], type='date'),
+        xaxis2=dict(range=[cutoff_str, today_str], type='date'),
     )
     
     # FIX: Explicit y-axis ranges from actual data
@@ -581,12 +582,12 @@ def build_positioning_chart(pair):
     fig.update_layout(**_base_layout(height=480))
     _style_axes(fig)
     
-    # FIX: Set x-axis ranges for both subplots individually using Timestamp objects
-    cutoff_iso = cutoff.isoformat()
-    today_iso = today.isoformat()
+    # Set x-axis ranges for both subplots
+    cutoff_str = cutoff.strftime('%Y-%m-%d')
+    today_str = today.strftime('%Y-%m-%d')
     fig.update_layout(
-        xaxis =dict(range=[cutoff_iso, today_iso], type='date'),
-        xaxis2=dict(range=[cutoff_iso, today_iso], type='date'),
+        xaxis =dict(range=[cutoff_str, today_str], type='date'),
+        xaxis2=dict(range=[cutoff_str, today_str], type='date'),
     )
     
     # FIX: Set y-axis ranges
@@ -845,12 +846,12 @@ def build_vol_correlation_chart(pair):
     fig.update_layout(**_base_layout(height=420))
     _style_axes(fig)
     
-    # FIX: Set x-axis ranges for both subplots using Timestamp objects
-    cutoff_iso = cutoff.isoformat()
-    today_iso = today.isoformat()
+    # Set x-axis ranges for both subplots
+    cutoff_str = cutoff.strftime('%Y-%m-%d')
+    today_str = today.strftime('%Y-%m-%d')
     fig.update_layout(
-        xaxis =dict(range=[cutoff_iso, today_iso], type='date'),
-        xaxis2=dict(range=[cutoff_iso, today_iso], type='date')
+        xaxis =dict(range=[cutoff_str, today_str], type='date'),
+        xaxis2=dict(range=[cutoff_str, today_str], type='date')
     )
     
     # FIX: Set y-axis ranges
@@ -1029,3 +1030,47 @@ if __name__ == '__main__':
             pio.write_html(fig, fname, auto_open=False)
     
     print("Done!")
+
+
+def debug_fig_data():
+    d, cutoff, today = _load_and_filter()
+    
+    # Check what data is actually being passed to traces
+    print("=== DATA CHECK ===")
+    print(f"Rows in filtered data: {len(d)}")
+    print(f"EURUSD first value: {d['EURUSD'].iloc[0]:.4f}")
+    print(f"EURUSD last value: {d['EURUSD'].iloc[-1]:.4f}")
+    print(f"EURUSD_vol30 col exists: {'EURUSD_vol30' in d.columns}")
+    if 'EURUSD_vol30' in d.columns:
+        vol = d['EURUSD_vol30'].dropna()
+        print(f"Vol values range: {vol.min():.4f} to {vol.max():.4f}")
+        print(f"Vol first non-null: {vol.iloc[0]:.4f}")
+    
+    print(f"\nEUR_net_pos col exists: {'EUR_net_pos' in d.columns}")
+    if 'EUR_net_pos' in d.columns:
+        net = d['EUR_net_pos'].dropna()
+        print(f"Net pos range: {net.min():,.0f} to {net.max():,.0f}")
+    
+    # Build one fig and inspect its actual trace data
+    fig = build_fundamentals_chart('eurusd')
+    print("\n=== FIGURE TRACE DATA ===")
+    for i, trace in enumerate(fig.data):
+        if hasattr(trace, 'y') and trace.y is not None:
+            y_arr = list(trace.y)
+            non_none = [v for v in y_arr if v is not None]
+            print(f"Trace {i} ({trace.name}): {len(y_arr)} points, "
+                  f"first={non_none[0] if non_none else 'empty'}, "
+                  f"last={non_none[-1] if non_none else 'empty'}")
+        if hasattr(trace, 'x') and trace.x is not None:
+            x_arr = list(trace.x)
+            print(f"  x range: {x_arr[0]} to {x_arr[-1]}")
+    
+    print("\n=== LAYOUT AXES ===")
+    layout_dict = fig.to_dict()['layout']
+    for key in layout_dict:
+        if 'axis' in key and 'range' in str(layout_dict[key]):
+            print(f"  {key}: {layout_dict[key]}")
+
+
+if __name__ == '__main__':
+    debug_fig_data()

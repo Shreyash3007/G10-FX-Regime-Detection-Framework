@@ -53,18 +53,19 @@ from create_charts_plotly import (
 )
 import plotly.io as pio
 
-plotly_config = dict(scrollZoom=True, displayModeBar=False, 
-                     responsive=True)
+plotly_config = dict(scrollZoom=True, displayModeBar=False)
 
 def fig_to_div(fig, height=480):
     if fig is None:
         return '<div style="color:#555;padding:20px;font-size:11px;">Chart unavailable</div>'
     div = pio.to_html(
-        fig, 
+        fig,
         full_html=False,
         config=plotly_config,
         include_plotlyjs=False,
-        div_id=None
+        div_id=None,
+        default_width='100%',
+        default_height=f'{height}px'
     )
     return f'<div style="width:100%;height:{height}px;overflow:hidden;">{div}</div>'
 
@@ -102,6 +103,34 @@ def generate_html_brief():
     # Read the previous brief as template
     with open(brief_file, 'r', encoding='utf-8') as f:
         html_content = f.read()
+    
+    # INJECT fresh chart divs — replace each chart-pane's (single-line) content
+    # with the freshly generated div (uses strftime index, fresh data, correct opacity)
+    import re
+    chart_map = {
+        ('eurusd', '0'): eurusd_fund_div,
+        ('eurusd', '1'): eurusd_pos_div,
+        ('eurusd', '2'): eurusd_vol_div,
+        ('usdjpy', '0'): usdjpy_fund_div,
+        ('usdjpy', '1'): usdjpy_pos_div,
+        ('usdjpy', '2'): usdjpy_vol_div,
+        ('usdinr', '0'): usdinr_fund_div,
+    }
+    for (pair, pane), new_div in chart_map.items():
+        if new_div is None:
+            continue
+        # Chart content is always a single long line after the opening tag.
+        # Match opening tag + the one content line; leave the closing </div> untouched.
+        pattern = (
+            rf'(<div class="chart-pane"[^>]*data-pair="{pair}"[^>]*'
+            rf'data-pane="{pane}"[^>]*>)'
+            rf'(\n[^\n]*)'   # one content line (may be empty on first run)
+        )
+        html_content = re.sub(
+            pattern,
+            lambda m, d=new_div: m.group(1) + '\n' + d,
+            html_content
+        )
     
     # DIAGNOSTIC 2 FIX: Change CSS from display:none to visibility:hidden (keeps element in layout)
     html_content = html_content.replace(
