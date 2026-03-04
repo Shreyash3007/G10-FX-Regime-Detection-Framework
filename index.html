@@ -107,7 +107,7 @@ body {
 .badge-crowded-short { background: #e05c5c; color: #ffffff; }
 .badge-neutral-card  { background: #333333; color: #888888; }
 .card-body {
-    min-height: 520px;
+    height: auto;
     display: flex;
     background: #141414;
 }
@@ -161,7 +161,6 @@ body {
 }
 .chart-display-area {
     flex-grow: 1;
-    min-height: 420px;
     position: relative;
     overflow: hidden;
 }
@@ -182,33 +181,35 @@ body {
     font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 1px;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 .brief-row {
     display: flex;
     align-items: center;
     line-height: 1.35;
-    margin-top: 4px;
+    margin-top: 3px;
 }
 .brief-row .name {
-    width: 140px;
+    width: 118px;
     flex-shrink: 0;
     color: #888;
     font-size: 11px;
     white-space: nowrap;
 }
 .brief-row .val {
-    width: 80px;
+    width: 58px;
     flex-shrink: 0;
     text-align: right;
     color: #ffffff;
     font-size: 12px;
     font-weight: 600;
+    font-variant-numeric: tabular-nums;
 }
 .brief-row .pct {
     flex: 1;
     text-align: right;
     font-size: 11px;
+    font-variant-numeric: tabular-nums;
 }
 .badge-mini {
     display: inline-block;
@@ -508,6 +509,16 @@ body {
 </div>
 
 <script>
+function _syncH(pair) {
+  var pane = document.querySelector(
+    '.chart-pane[data-pair="' + pair + '"][style*="position:relative"]'
+  );
+  if (!pane) return;
+  var iframe = pane.querySelector('iframe');
+  var area   = pane.closest('.chart-display-area');
+  if (iframe && area) area.style.height = iframe.style.height || 'auto';
+}
+
 document.querySelectorAll('.chart-tab').forEach(function(tab) {
   tab.addEventListener('click', function() {
     var pair   = this.dataset.pair;
@@ -531,8 +542,16 @@ document.querySelectorAll('.chart-tab').forEach(function(tab) {
     pane.style.visibility    = 'visible';
     pane.style.position      = 'relative';
     pane.style.pointerEvents = 'auto';
+    _syncH(pair);
   });
 });
+
+var _ps = [];
+document.querySelectorAll('[data-pair]').forEach(function(el) {
+  if (el.dataset.pair && _ps.indexOf(el.dataset.pair) === -1)
+    _ps.push(el.dataset.pair);
+});
+_ps.forEach(_syncH);
 </script>
 
 </body>

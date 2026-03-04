@@ -99,32 +99,49 @@ def generate_html_brief():
     # ------------------------------------------------------------------
     # 2. CSS patches (idempotent — cascade through version history)
     # ------------------------------------------------------------------
-    # card-body: 380px → 520px (old) → 560px (current)
-    html_content = html_content.replace(
+
+    # card-body: remove all fixed/min heights — height: auto, content drives it
+    for _cb_old in [
         '.card-body {\n    height: 380px;\n',
-        '.card-body {\n    min-height: 560px;\n    height: auto;\n',
-    )
-    html_content = html_content.replace(
         '.card-body {\n    min-height: 380px;\n',
-        '.card-body {\n    min-height: 560px;\n    height: auto;\n',
-    )
-    html_content = html_content.replace(
         '.card-body {\n    min-height: 520px;\n',
         '.card-body {\n    min-height: 560px;\n    height: auto;\n',
-    )
-    # also handle briefs that already have height: auto line
-    html_content = html_content.replace(
         '.card-body {\n    min-height: 520px;\n    height: auto;\n',
-        '.card-body {\n    min-height: 560px;\n    height: auto;\n',
-    )
-    # chart-display-area: 420px → 480px
-    html_content = html_content.replace(
+    ]:
+        html_content = html_content.replace(_cb_old, '.card-body {\n    height: auto;\n')
+
+    # chart-display-area: strip any explicit height — JS syncs it to active iframe
+    for _cda_old in [
         '.chart-display-area {\n    flex-grow: 1;\n    position: relative;\n    overflow: hidden;\n}',
-        '.chart-display-area {\n    flex-grow: 1;\n    min-height: 480px;\n    position: relative;\n    overflow: hidden;\n}',
-    )
-    html_content = html_content.replace(
         '.chart-display-area {\n    flex-grow: 1;\n    min-height: 420px;\n    position: relative;\n    overflow: hidden;\n}',
         '.chart-display-area {\n    flex-grow: 1;\n    min-height: 480px;\n    position: relative;\n    overflow: hidden;\n}',
+        '.chart-display-area {\n    flex-grow: 1;\n\n    position: relative;\n    overflow: hidden;\n}',
+    ]:
+        html_content = html_content.replace(
+            _cda_old,
+            '.chart-display-area {\n    flex-grow: 1;\n    position: relative;\n    overflow: hidden;\n}'
+        )
+
+    # brief-row: tighten name column, add tabular number alignment
+    html_content = html_content.replace(
+        '.brief-label {\n    color: #555;\n    font-size: 9px;\n    text-transform: uppercase;\n    letter-spacing: 1px;\n    margin-bottom: 8px;\n}',
+        '.brief-label {\n    color: #555;\n    font-size: 9px;\n    text-transform: uppercase;\n    letter-spacing: 1px;\n    margin-bottom: 6px;\n}',
+    )
+    html_content = html_content.replace(
+        '.brief-row {\n    display: flex;\n    align-items: center;\n    line-height: 1.35;\n    margin-top: 4px;\n}',
+        '.brief-row {\n    display: flex;\n    align-items: center;\n    line-height: 1.35;\n    margin-top: 3px;\n}',
+    )
+    html_content = html_content.replace(
+        '.brief-row .name {\n    width: 140px;\n',
+        '.brief-row .name {\n    width: 118px;\n',
+    )
+    html_content = html_content.replace(
+        '.brief-row .val {\n    width: 80px;\n    flex-shrink: 0;\n    text-align: right;\n    color: #ffffff;\n    font-size: 12px;\n    font-weight: 600;\n}',
+        '.brief-row .val {\n    width: 58px;\n    flex-shrink: 0;\n    text-align: right;\n    color: #ffffff;\n    font-size: 12px;\n    font-weight: 600;\n    font-variant-numeric: tabular-nums;\n}',
+    )
+    html_content = html_content.replace(
+        '.brief-row .pct {\n    flex: 1;\n    text-align: right;\n    font-size: 11px;\n}',
+        '.brief-row .pct {\n    flex: 1;\n    text-align: right;\n    font-size: 11px;\n    font-variant-numeric: tabular-nums;\n}',
     )
 
     # ------------------------------------------------------------------
@@ -154,6 +171,16 @@ def generate_html_brief():
     #    (iframes are self-contained; no Plotly.Plots.resize needed)
     # ------------------------------------------------------------------
     tab_handler = '''
+function _syncH(pair) {
+  var pane = document.querySelector(
+    '.chart-pane[data-pair="' + pair + '"][style*="position:relative"]'
+  );
+  if (!pane) return;
+  var iframe = pane.querySelector('iframe');
+  var area   = pane.closest('.chart-display-area');
+  if (iframe && area) area.style.height = iframe.style.height || 'auto';
+}
+
 document.querySelectorAll('.chart-tab').forEach(function(tab) {
   tab.addEventListener('click', function() {
     var pair   = this.dataset.pair;
@@ -177,8 +204,16 @@ document.querySelectorAll('.chart-tab').forEach(function(tab) {
     pane.style.visibility    = 'visible';
     pane.style.position      = 'relative';
     pane.style.pointerEvents = 'auto';
+    _syncH(pair);
   });
 });
+
+var _ps = [];
+document.querySelectorAll('[data-pair]').forEach(function(el) {
+  if (el.dataset.pair && _ps.indexOf(el.dataset.pair) === -1)
+    _ps.push(el.dataset.pair);
+});
+_ps.forEach(_syncH);
 '''
 
     all_scripts = list(_re.finditer(r'(<script>)(.*?)(</script>)', html_content, _re.DOTALL))
