@@ -43,8 +43,7 @@ CHART_DIVS = {
 import shutil
 
 def load_latest_brief_data():
-    """Load data from latest generated brief file."""
-    # Find latest brief file
+    """Load the most recent HTML brief as the base template."""
     brief_files = sorted(glob.glob('briefs/brief_*.html'))
     if not brief_files:
         return None
@@ -83,6 +82,18 @@ def generate_html_brief():
             html_content
         )
     
+    # FIX: card-body 380px clips charts (tallest is 480px). Bump to min-height.
+    html_content = html_content.replace(
+        '.card-body {\n    height: 380px;\n',
+        '.card-body {\n    min-height: 520px;\n'
+    )
+
+    # FIX: chart-display-area needs an explicit min-height so flex-grow works
+    html_content = html_content.replace(
+        '.chart-display-area {\n    flex-grow: 1;\n    position: relative;\n    overflow: hidden;\n}',
+        '.chart-display-area {\n    flex-grow: 1;\n    min-height: 420px;\n    position: relative;\n    overflow: hidden;\n}'
+    )
+
     # DIAGNOSTIC 2 FIX: Change CSS from display:none to visibility:hidden (keeps element in layout)
     html_content = html_content.replace(
         '.chart-pane {\n    display: none;\n    width: 100%;\n    overflow: visible;\n}',
@@ -111,85 +122,65 @@ def generate_html_brief():
     import re as _re
     
     definitive_handler = r'''
-document.querySelectorAll('.chart-tab').forEach(tab => {
+document.querySelectorAll('.chart-tab').forEach(function(tab) {
   tab.addEventListener('click', function() {
-    const pair = this.dataset.pair;
-    const tabIdx = this.dataset.tab;
+    var pair   = this.dataset.pair;
+    var tabIdx = this.dataset.tab;
 
-    document.querySelectorAll(
-      `.chart-tab[data-pair="${pair}"]`
-    ).forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.chart-tab[data-pair="' + pair + '"]')
+      .forEach(function(t) { t.classList.remove('active'); });
 
-    document.querySelectorAll(
-      `.chart-pane[data-pair="${pair}"]`
-    ).forEach(p => {
-      p.style.visibility = 'hidden';
-      p.style.position = 'absolute';
-      p.style.pointerEvents = 'none';
-    });
+    document.querySelectorAll('.chart-pane[data-pair="' + pair + '"]')
+      .forEach(function(p) {
+        p.style.visibility   = 'hidden';
+        p.style.position     = 'absolute';
+        p.style.pointerEvents = 'none';
+      });
 
     this.classList.add('active');
 
-    const pane = document.querySelector(
-      `.chart-pane[data-pair="${pair}"][data-pane="${tabIdx}"]`
+    var pane = document.querySelector(
+      '.chart-pane[data-pair="' + pair + '"][data-pane="' + tabIdx + '"]'
     );
-    pane.style.visibility = 'visible';
-    pane.style.position = 'relative';
+    pane.style.visibility   = 'visible';
+    pane.style.position     = 'relative';
     pane.style.pointerEvents = 'auto';
 
+    // resize the chart that just became visible
     setTimeout(function() {
-      pane.querySelectorAll('.plotly-graph-div').forEach(function(plot) {
-        Plotly.Plots.resize(plot);
+      pane.querySelectorAll('.plotly-graph-div').forEach(function(el) {
+        Plotly.Plots.resize(el);
       });
-    }, 60);
+    }, 50);
   });
 });
 
+// On full page load flex layout is computed — resize every chart once.
 window.addEventListener('load', function() {
-  document.querySelectorAll('.plotly-graph-div').forEach(function(plot) {
-    if (plot.data) Plotly.Plots.resize(plot);
+  document.querySelectorAll('.plotly-graph-div').forEach(function(el) {
+    Plotly.Plots.resize(el);
   });
 });
 '''
-    
-    # Find the last <script>...</script> block and replace its body
-    last_script = list(_re.finditer(r'(<script>)(.*?)(</script>)', html_content, _re.DOTALL))
-    if last_script:
-        m = last_script[-1]
+
+    # ====================================================================
+    # Remove any old deferred-init scripts (idempotency from previous runs)
+    # ====================================================================
+    html_content = _re.sub(
+        r'\n?<script>\s*\(function\(\)\{\s*var _orig = Plotly\.newPlot.*?\}\)\(\);\s*</script>\n?',
+        '',
+        html_content,
+        flags=_re.DOTALL
+    )
+
+    # ====================================================================
+    # Replace the last plain <script> block with the definitive handler
+    # ====================================================================
+    all_scripts = list(_re.finditer(r'(<script>)(.*?)(</script>)', html_content, _re.DOTALL))
+    if all_scripts:
+        m = all_scripts[-1]
         html_content = (html_content[:m.start(2)] + definitive_handler +
                         html_content[m.end(2):])
-    
-    # ====================================================================
-    # CRITICAL FIX: Defer all Plotly.newPlot calls until window.load
-    # ====================================================================
-    # Plotly's inline <script> tags call Plotly.newPlot() during HTML parsing,
-    # before the browser computes flex layout.  At that moment the container
-    # has width=0 so every chart collapses to a single vertical line.
-    #
-    # Strategy: inject a script RIGHT AFTER the Plotly CDN <script> that
-    # monkey-patches Plotly.newPlot to queue calls; then on window.load
-    # it replays them (container now has its real pixel width) and
-    # restores the original function.
-    # ====================================================================
-    
-    deferred_script = '''<script>
-(function(){
-  var _orig = Plotly.newPlot.bind(Plotly);
-  var _q = [];
-  Plotly.newPlot = function(){_q.push(Array.prototype.slice.call(arguments)); return Promise.resolve();};
-  window.addEventListener("load", function(){
-    Plotly.newPlot = _orig;
-    _q.forEach(function(a){_orig.apply(Plotly, a);});
-  });
-})();
-</script>'''
-    
-    # Insert right after the Plotly CDN script tag
-    html_content = html_content.replace(
-        '</script>\n<style>',
-        '</script>\n' + deferred_script + '\n<style>',
-        1  # only the first occurrence (CDN script is first)
-    )
     
     # Save the modified brief
     os.makedirs('briefs', exist_ok=True)
