@@ -320,10 +320,17 @@ def build_brief(df):
     # (NonCommercial removed - not used in this report)
 
     # COT data is weekly -- find the actual COT date (last non-NaN)
-    cot_date = "n/a"
+    # CFTC schedule: positions snapshot = Tuesday close (cutoff)
+    #                publication    = Friday of the same week (cutoff + 3 days)
+    cot_cutoff    = "n/a"
+    cot_published = "n/a"
     if os.path.exists("data/cot_latest.csv"):
-        cot_raw  = pd.read_csv("data/cot_latest.csv", index_col=0, parse_dates=True)
-        cot_date = str(cot_raw.index[-1].date())
+        cot_raw       = pd.read_csv("data/cot_latest.csv", index_col=0, parse_dates=True)
+        cot_last      = cot_raw.index[-1]
+        cot_cutoff    = str(cot_last.date())
+        cot_published = str((cot_last + pd.Timedelta(days=3)).date())
+    # keep cot_date as alias so downstream references still work
+    cot_date = cot_cutoff
 
     # IN 10Y freshness -- find last non-NaN date in the loaded data
     in10y_date = "n/a"
@@ -365,7 +372,7 @@ def build_brief(df):
     lines.append("=" * W)
     lines.append(f"  G10 FX MORNING BRIEF")
     lines.append(f"  {TODAY_FMT}")
-    lines.append(f"  FX as of: {as_of}  |  IN 10Y as of: {in10y_date}  |  COT as of: {cot_date}")
+    lines.append(f"  FX as of: {as_of}  |  IN 10Y as of: {in10y_date}  |  COT cutoff: {cot_cutoff} (pub'd: {cot_published})")
     lines.append("=" * W)
 
     # ── PRICES ────────────────────────────────────────────────────────────────
@@ -455,7 +462,7 @@ def build_brief(df):
 
     # ── POSITIONING ───────────────────────────────────────────────────────────
     lines.append("")
-    lines.append(f"  COT POSITIONING (as of {cot_date})")
+    lines.append(f"  COT POSITIONING  (cutoff: {cot_cutoff} = Tue close | pub'd: {cot_published} = Fri)")
     lines.append(f"  {'-'*66}")
 
     # EUR/USD positioning - all three categories
