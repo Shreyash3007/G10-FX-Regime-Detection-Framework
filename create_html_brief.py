@@ -155,272 +155,401 @@ def update_globalbar(html_content, _re):
     return html_content
 
 
-# ============================================================================
-# LANDING PAGE (Page 0) — full-screen overview with live signal grid
-# ============================================================================
+def _mini_signal_row(name, val_str, val_color, badge_label, badge_css):
+    """Return a single signal row HTML for the landing mini-card."""
+    return (
+        f'<div class="lc-row">'
+        f'<span class="lc-name">{name}</span>'
+        f'<span class="lc-val" style="color:{val_color}">{val_str}</span>'
+        f'<span class="lc-badge {badge_css}">{badge_label}</span>'
+        f'</div>'
+    )
+
+
+def _regime_corr_info(corr_val):
+    if math.isnan(corr_val): return '\u2014', '#555', 'badge-neutral', 'NO DATA'
+    if corr_val >= 0.6:  return f'{corr_val:+.3f}', '#00d4aa', 'badge-success',  'INTACT'
+    if corr_val >= 0.3:  return f'{corr_val:+.3f}', '#888888', 'badge-neutral',  'WEAKENING'
+    if corr_val >= -0.3: return f'{corr_val:+.3f}', '#ff4444', 'badge-danger',   'BROKEN'
+    return f'{corr_val:+.3f}', '#f0a500', 'badge-warning', 'INVERTED'
+
 
 def inject_landing_page(html_content, _re):
-    """Build and inject a full-screen landing page (Page 0) before the pair cards."""
-    if 'id="landing-page"' in html_content:
-        return html_content  # idempotent
+    """Inject a full-screen landing/overview page before the first pair card."""
+    if 'id="landing"' in html_content or 'id="landing-page"' in html_content.replace('<!-- LANDING PAGE -->', ''):
+        # Only skip if the NEW landing div already exists (old one will be stripped upstream)
+        if 'id="landing"' in html_content:
+            return html_content
 
     try:
         df  = pd.read_csv('data/latest_with_cot.csv', index_col=0, parse_dates=True)
         row = df.iloc[-1]
+        last_date = df.index[-1]
+        date_str  = last_date.strftime('%d %b %Y')
     except Exception:
         return html_content
 
-    # ---- helpers ----
-    def _c(v):
-        if isinstance(v, float) and math.isnan(v):
-            return '#555'
-        return '#00d4aa' if v >= 0 else '#ff4444'
+    def _g(col, default=float('nan')):
+        v = row.get(col, default)
+        return float(v) if not isinstance(v, float) else v
 
-    def _s(v, fmt='+.2f'):
-        if isinstance(v, float) and math.isnan(v):
-            return '—'
-        return f'{v:{fmt}}'
+    def _chg_span(pct, big=False):
+        if math.isnan(pct): return '\u2014'
+        color = '#00d4aa' if pct >= 0 else '#ff4444'
+        sign  = '+' if pct >= 0 else ''
+        sz    = '14px' if big else '11px'
+        return f'<span style="color:{color};font-size:{sz}">{sign}{pct:.2f}%</span>'
 
-    def _nan(v):
-        return isinstance(v, float) and math.isnan(v)
+    def _price_fmt(col, decimals=4):
+        v = _g(col)
+        if math.isnan(v): return '\u2014'
+        return f'{v:.{decimals}f}'
 
-    def _badge(label, bg, fg):
-        return f'<span class="lp-badge" style="background:{bg};color:{fg}">{label}</span>'
+    def _cot_badge(pct):
+        if math.isnan(pct): return '\u2014', 'badge-neutral'
+        if pct >= 90: return f'{pct:.0f}th', 'badge-danger'
+        if pct >= 75: return f'{pct:.0f}th', 'badge-warning'
+        if pct <= 25: return f'{pct:.0f}th', 'badge-danger'
+        return f'{pct:.0f}th', 'badge-neutral'
 
-    _BADGE_MAP = {
-        'BROKEN':         ('#2a0000', '#ff4444'), 'INTACT':          ('#002a1a', '#00d4aa'),
-        'WEAKENING':      ('#2a1500', '#f0a500'), 'REBUILDING':      ('#002a1a', '#00d4aa'),
-        'CROWDED LONG':   ('#2a1a00', '#f0a500'), 'CROWDED SHORT':   ('#2a0000', '#e05c5c'),
-        'NEUTRAL':        ('#1a1a1a', '#666666'), 'NORMAL':          ('#1a1a1a', '#888888'),
-        'LONG':           ('#1a2a00', '#8bc34a'),  'SHORT':           ('#1a0000', '#e05c5c'),
-        'ELEVATED':       ('#2a1a00', '#f0a500'), 'EXTREME':         ('#2a0000', '#ff4444'),
-        'HIGH':           ('#002a1a', '#00d4aa'), 'MODERATE':        ('#1a1a1a', '#888888'),
-        'LOW':            ('#1a1a1a', '#555555'), 'OIL DIVERGENCE':  ('#2a0000', '#ff4444'),
-        'DOLLAR REGIME':  ('#1a1a2a', '#4da6ff'), 'MIXED':           ('#1a1a1a', '#888888'),
-        'EUR SPECIFIC':   ('#1a2a1a', '#00d4aa'), 'YEN SPECIFIC':    ('#1a2a1a', '#00d4aa'),
-        'INDIA SPECIFIC': ('#1a2a1a', '#00d4aa'),
-    }
+    def _vol_badge(pct):
+        if math.isnan(pct): return '\u2014%', '\u2014', 'badge-neutral', 'NORMAL'
+        if pct >= 90: return f'{pct:.0f}th', 'badge-danger', 'EXTREME'
+        if pct >= 75: return f'{pct:.0f}th', 'badge-warning', 'ELEVATED'
+        return f'{pct:.0f}th', 'badge-neutral', 'NORMAL'
 
-    def _cbadge(label):
-        bg, fg = _BADGE_MAP.get(label, ('#1a1a1a', '#666'))
-        return _badge(label, bg, fg)
+    # --- EUR/USD mini-card ---
+    eur_price       = _price_fmt('EURUSD', 4)
+    eur_1d          = _chg_span(_g('EURUSD_chg_1D'), big=True)
+    eur_12m         = _chg_span(_g('EURUSD_chg_12M'))
+    eur_sp10        = _g('US_DE_10Y_spread')
+    eur_sp10_str    = f'{eur_sp10:.2f}%' if not math.isnan(eur_sp10) else '\u2014'
+    eur_sp10_dir    = '\u2193' if _g('US_DE_10Y_spread_chg_1W') < 0 else '\u2191'
+    eur_sp10_col    = '#00d4aa' if _g('US_DE_10Y_spread_chg_1W') < 0 else '#ff4444'
+    eur_lev_pct     = _g('EUR_lev_percentile', float('nan'))
+    eur_lev_str, eur_lev_bdg = _cot_badge(eur_lev_pct)
+    eur_vol_pct     = _g('EURUSD_vol_pct', float('nan'))
+    eur_vol30       = _g('EURUSD_vol30', float('nan'))
+    eur_vol_str     = f'{eur_vol30:.1f}%' if not math.isnan(eur_vol30) else '\u2014'
+    eur_vol_pctile, eur_vol_bdg, eur_vol_lbl = _vol_badge(eur_vol_pct) if not math.isnan(eur_vol_pct) else ('\u2014', 'badge-neutral', 'NORMAL')
+    eur_corr        = _g('EURUSD_spread_corr_60d', float('nan'))
+    eur_corr_str, eur_corr_col, eur_corr_bdg, eur_corr_lbl = _regime_corr_info(eur_corr)
+    eur_oil_corr    = _g('oil_eurusd_corr_60d', float('nan'))
+    eur_oil_lbl, _ = _oil_corr_label(eur_oil_corr, 'EURUSD') if not math.isnan(eur_oil_corr) else ('NO DATA', '')
+    eur_oil_col     = '#ff4444' if eur_oil_lbl == 'OIL DIVERGENCE' else '#00d4aa' if eur_oil_lbl == 'HIGH' else '#888'
+    eur_oil_bdg     = 'badge-danger' if eur_oil_lbl == 'OIL DIVERGENCE' else 'badge-success' if eur_oil_lbl == 'HIGH' else 'badge-neutral'
+    eur_dxy_corr    = _g('dxy_eurusd_corr_60d', float('nan'))
+    eur_dxy_lbl, _ = _dxy_corr_label(eur_dxy_corr, 'EURUSD') if not math.isnan(eur_dxy_corr) else ('NO DATA', '')
+    eur_dxy_col     = '#4da6ff' if eur_dxy_lbl == 'DOLLAR REGIME' else '#00d4aa' if 'SPECIFIC' in eur_dxy_lbl else '#888'
+    eur_dxy_bdg     = 'badge-info' if eur_dxy_lbl == 'DOLLAR REGIME' else 'badge-success' if 'SPECIFIC' in eur_dxy_lbl else 'badge-neutral'
 
-    def _vol_lbl(pct):
-        if _nan(pct): return 'NORMAL'
-        if pct >= 90: return 'EXTREME'
-        if pct >= 75: return 'ELEVATED'
-        return 'NORMAL'
+    # --- USD/JPY mini-card ---
+    jpy_price       = _price_fmt('USDJPY', 2)
+    jpy_1d          = _chg_span(_g('USDJPY_chg_1D'), big=True)
+    jpy_12m         = _chg_span(_g('USDJPY_chg_12M'))
+    jpy_sp10        = _g('US_JP_10Y_spread')
+    jpy_sp10_str    = f'{jpy_sp10:.2f}%' if not math.isnan(jpy_sp10) else '\u2014'
+    jpy_sp10_dir    = '\u2193' if _g('US_JP_10Y_spread_chg_1W') < 0 else '\u2191'
+    jpy_sp10_col    = '#00d4aa' if _g('US_JP_10Y_spread_chg_1W') < 0 else '#ff4444'
+    jpy_lev_pct     = _g('JPY_lev_percentile', float('nan'))
+    jpy_lev_str, jpy_lev_bdg = _cot_badge(jpy_lev_pct)
+    jpy_vol_pct     = _g('USDJPY_vol_pct', float('nan'))
+    jpy_vol30       = _g('USDJPY_vol30', float('nan'))
+    jpy_vol_str     = f'{jpy_vol30:.1f}%' if not math.isnan(jpy_vol30) else '\u2014'
+    jpy_vol_pctile, jpy_vol_bdg, jpy_vol_lbl = _vol_badge(jpy_vol_pct) if not math.isnan(jpy_vol_pct) else ('\u2014', 'badge-neutral', 'NORMAL')
+    jpy_corr        = _g('USDJPY_spread_corr_60d', float('nan'))
+    jpy_corr_str, jpy_corr_col, jpy_corr_bdg, jpy_corr_lbl = _regime_corr_info(jpy_corr)
+    jpy_oil_corr    = _g('oil_usdjpy_corr_60d', float('nan'))
+    jpy_oil_lbl, _ = _oil_corr_label(jpy_oil_corr, 'USDJPY') if not math.isnan(jpy_oil_corr) else ('NO DATA', '')
+    jpy_oil_col     = '#ff4444' if jpy_oil_lbl == 'OIL DIVERGENCE' else '#00d4aa' if jpy_oil_lbl == 'HIGH' else '#888'
+    jpy_oil_bdg     = 'badge-danger' if jpy_oil_lbl == 'OIL DIVERGENCE' else 'badge-success' if jpy_oil_lbl == 'HIGH' else 'badge-neutral'
+    jpy_dxy_corr    = _g('dxy_usdjpy_corr_60d', float('nan'))
+    jpy_dxy_lbl, _ = _dxy_corr_label(jpy_dxy_corr, 'USDJPY') if not math.isnan(jpy_dxy_corr) else ('NO DATA', '')
+    jpy_dxy_col     = '#4da6ff' if jpy_dxy_lbl == 'DOLLAR REGIME' else '#00d4aa' if 'SPECIFIC' in jpy_dxy_lbl else '#888'
+    jpy_dxy_bdg     = 'badge-info' if jpy_dxy_lbl == 'DOLLAR REGIME' else 'badge-success' if 'SPECIFIC' in jpy_dxy_lbl else 'badge-neutral'
 
-    def _regime_lbl(corr):
-        if _nan(corr): return 'NO DATA'
-        v = abs(corr)
-        if v >= 0.5: return 'INTACT'
-        if v >= 0.25: return 'WEAKENING'
-        return 'BROKEN'
+    # --- USD/INR mini-card ---
+    inr_price       = _price_fmt('USDINR', 2)
+    inr_1d          = _chg_span(_g('USDINR_chg_1D'), big=True)
+    inr_12m         = _chg_span(_g('USDINR_chg_12M'))
+    inr_sp10        = _g('US_IN_10Y_spread')
+    inr_sp10_str    = f'{inr_sp10:.2f}%' if not math.isnan(inr_sp10) else '\u2014'
+    inr_sp10_dir    = '\u2193' if _g('US_IN_10Y_spread_chg_1W') < 0 else '\u2191'
+    inr_sp10_col    = '#00d4aa' if _g('US_IN_10Y_spread_chg_1W') < 0 else '#ff4444'
+    inr_oil_corr    = _g('oil_inr_corr_60d', float('nan'))
+    inr_oil_lbl, _ = _oil_corr_label(inr_oil_corr, 'USDINR') if not math.isnan(inr_oil_corr) else ('NO DATA', '')
+    inr_oil_col     = '#ff4444' if inr_oil_lbl == 'OIL DIVERGENCE' else '#00d4aa' if inr_oil_lbl == 'HIGH' else '#888'
+    inr_oil_bdg     = 'badge-danger' if inr_oil_lbl == 'OIL DIVERGENCE' else 'badge-success' if inr_oil_lbl == 'HIGH' else 'badge-neutral'
+    inr_dxy_corr    = _g('dxy_inr_corr_60d', float('nan'))
+    inr_dxy_lbl, _ = _dxy_corr_label(inr_dxy_corr, 'USDINR') if not math.isnan(inr_dxy_corr) else ('NO DATA', '')
+    inr_dxy_col     = '#4da6ff' if inr_dxy_lbl == 'DOLLAR REGIME' else '#00d4aa' if 'SPECIFIC' in inr_dxy_lbl else '#888'
+    inr_dxy_bdg     = 'badge-info' if inr_dxy_lbl == 'DOLLAR REGIME' else 'badge-success' if 'SPECIFIC' in inr_dxy_lbl else 'badge-neutral'
 
-    def _cot_lbl(pct):
-        if _nan(pct): return 'NEUTRAL'
-        if pct >= 90: return 'CROWDED LONG'
-        if pct >= 75: return 'LONG'
-        if pct <= 10: return 'CROWDED SHORT'
-        if pct <= 25: return 'SHORT'
-        return 'NEUTRAL'
+    # --- Cross-asset ticker bar ---
+    dxy_val        = _g('DXY')
+    brent_val      = _g('Brent')
+    gold_val       = _g('Gold')
+    dxy_str        = f'{dxy_val:.2f}' if not math.isnan(dxy_val) else '\u2014'
+    brent_str      = f'${brent_val:.2f}' if not math.isnan(brent_val) else '\u2014'
+    gold_str       = f'${gold_val:,.0f}' if not math.isnan(gold_val) else '\u2014'
 
-    # ---- header metadata from existing HTML ----
-    m_title = _re.search(r'<div class="title">([^<]+)</div>', html_content)
-    m_ts    = _re.search(r'data as of:\s*([^\n<]+)', html_content)
-    m_run   = _re.search(r'pipeline run:\s*([^\n<]+)', html_content)
-    brief_title = (m_title.group(1) if m_title else f'Morning Brief &mdash; {TODAY_FMT}')
-    data_as_of  = m_ts.group(1).strip().rstrip('<br>').strip()  if m_ts  else ''
-    run_ts      = m_run.group(1).strip() if m_run else ''
+    def _ticker_item(label, price, chg_col):
+        chg = _g(chg_col)
+        return (
+            f'<div class="lp-ticker-item">'
+            f'<span class="lp-ticker-label">{label}</span>'
+            f'<span class="lp-ticker-price">{price}</span>'
+            f'{_chg_span(chg)}'
+            f'</div>'
+        )
 
-    # ---- market assets row ----
-    def _asset_block(name, price_col, fmt_price, chg_col):
-        price = row.get(price_col, float('nan'))
-        chg   = row.get(chg_col,   float('nan'))
-        if _nan(price): return ''
-        chg_s = (f'<span style="color:{_c(chg)};font-size:11px">{_s(chg)}%</span>'
-                 if not _nan(chg) else '')
-        return (f'<div class="lp-asset">'
-                f'<span class="lp-asset-name">{name}</span>'
-                f'<span class="lp-asset-price">{price:{fmt_price}}</span>'
-                f'{chg_s}</div>')
-
-    market_row = (
-        _asset_block('DXY',   'DXY',   '.2f', 'DXY_chg_1D')   +
-        _asset_block('Brent', 'Brent', '.2f', 'Brent_chg_1D') +
-        _asset_block('Gold',  'Gold',  ',.0f', 'Gold_chg_1D')
+    ticker_html = (
+        _ticker_item('DXY', dxy_str, 'DXY_chg_1D') +
+        _ticker_item('EUR/USD', eur_price, 'EURUSD_chg_1D') +
+        _ticker_item('USD/JPY', jpy_price, 'USDJPY_chg_1D') +
+        _ticker_item('USD/INR', inr_price, 'USDINR_chg_1D') +
+        _ticker_item('Brent', brent_str, 'Brent_chg_1D') +
+        _ticker_item('Gold', gold_str, 'Gold_chg_1D')
     )
 
-    # ---- pair mini-cards ----
-    def _sig_row(label, val_html, badge_html=''):
-        return (f'<div class="lp-sig-row">'
-                f'<span class="lp-sig-name">{label}</span>'
-                f'<span style="display:flex;align-items:center;gap:4px">'
-                f'{val_html}{badge_html}</span></div>')
+    def _pair_card(pair_id, color, display, price_str, chg_1d, chg_12m,
+                   spread_str, spread_dir, spread_col,
+                   rows_html):
+        return f'''<div class="lp-pair-card">
+          <div class="lp-card-header" style="border-top:3px solid {color}">
+            <span class="lp-pair-label" style="color:{color}">{display}</span>
+            <div class="lp-price-block">
+              <span class="lp-price">{price_str}</span>
+              <span class="lp-1d">{chg_1d}</span>
+              <span class="lp-12m-label">12M</span>
+              <span class="lp-12m">{chg_12m}</span>
+            </div>
+          </div>
+          <div class="lp-spread-row">
+            <span class="lp-spread-label">Rate Spread (10Y)</span>
+            <span class="lp-spread-val" style="color:{spread_col}">{spread_dir} {spread_str}</span>
+          </div>
+          <div class="lp-signals">{rows_html}</div>
+          <a class="lp-drilldown" href="#{pair_id}">View Detail \u2192</a>
+        </div>'''
 
-    def _pair_card(display, pair_key, price_col, chg_1d, chg_12m,
-                   spr_name, spr_col, spr_chg_col,
-                   cot_col, vol_col, vol_pct_col, corr_col,
-                   oil_col, dxy_col, pair_color):
-        price  = row.get(price_col, float('nan'))
-        p1d    = row.get(chg_1d,    float('nan'))
-        p12m   = row.get(chg_12m,   float('nan'))
-        spr    = row.get(spr_col,        float('nan')) if spr_col else float('nan')
-        spr_ch = row.get(spr_chg_col,    float('nan')) if spr_chg_col else float('nan')
-        cot    = row.get(cot_col,        float('nan')) if cot_col else float('nan')
-        vol    = row.get(vol_col,        float('nan')) if vol_col else float('nan')
-        volp   = row.get(vol_pct_col,    float('nan')) if vol_pct_col else float('nan')
-        corr   = row.get(corr_col,       float('nan')) if corr_col else float('nan')
-        oil    = row.get(oil_col,        float('nan')) if oil_col else float('nan')
-        dxy_c  = row.get(dxy_col,        float('nan')) if dxy_col else float('nan')
-
-        # price display
-        if not _nan(price):
-            if price < 10:    price_s = f'{price:.4f}'
-            elif price < 100: price_s = f'{price:.3f}'
-            else:             price_s = f'{price:.2f}'
-        else:
-            price_s = '—'
-
-        p1d_s  = f'<span style="color:{_c(p1d)}">{_s(p1d)}%</span>'
-        p12m_s = f'<span style="color:{_c(p12m)}">12M {_s(p12m)}%</span>'
-
-        rows_html = ''
-        # rate spread
-        if not _nan(spr):
-            sv = f'{spr:.3f}%' if abs(spr) < 10 else f'{spr:.2f}%'
-            sc = ('—' if _nan(spr_ch) else
-                  f'<span style="color:{_c(-spr_ch)};font-size:9px">{_s(spr_ch,"+.2f")}pp</span>')
-            rows_html += _sig_row(spr_name, f'<span style="color:#888">{sv}</span>', sc)
-        # COT
-        if not _nan(cot):
-            rows_html += _sig_row('COT Lev',
-                f'<span style="color:#888">{cot:.0f}th</span>', _cbadge(_cot_lbl(cot)))
-        # vol
-        if not _nan(vol):
-            rows_html += _sig_row('30D Vol',
-                f'<span style="color:#888">{vol:.1f}%</span>', _cbadge(_vol_lbl(volp)))
-        # 60D regime corr
-        if not _nan(corr):
-            rows_html += _sig_row('60D Corr',
-                f'<span style="color:#888">{corr:+.3f}</span>', _cbadge(_regime_lbl(corr)))
-        # oil corr
-        if not _nan(oil):
-            oil_lbl, _ = _oil_corr_label(oil, pair_key)
-            rows_html += _sig_row('Oil corr',
-                f'<span style="color:#888">{oil:+.3f}</span>', _cbadge(oil_lbl))
-        # dxy corr
-        if not _nan(dxy_c):
-            dxy_lbl, _ = _dxy_corr_label(dxy_c, pair_key)
-            rows_html += _sig_row('DXY corr',
-                f'<span style="color:#888">{dxy_c:+.3f}</span>', _cbadge(dxy_lbl))
-
-        return (f'<div class="lp-pair-card">'
-                f'<div class="lp-pair-name" style="color:{pair_color}">{display}</div>'
-                f'<div class="lp-pair-price">{price_s}</div>'
-                f'<div class="lp-pair-changes">{p1d_s}'
-                f'<span style="color:#2a2a2a">|</span>{p12m_s}</div>'
-                f'{rows_html}</div>')
-
-    eur_card = _pair_card(
-        'EUR/USD', 'EURUSD', 'EURUSD', 'EURUSD_chg_1D', 'EURUSD_chg_12M',
-        'US-DE 10Y', 'US_DE_10Y_spread', 'US_DE_10Y_spread_chg_12M',
-        'EUR_lev_percentile', 'EURUSD_vol30', 'EURUSD_vol_pct',
-        'EURUSD_spread_corr_60d', 'oil_eurusd_corr_60d', 'dxy_eurusd_corr_60d',
-        pair_color='#4da6ff')
-
-    jpy_card = _pair_card(
-        'USD/JPY', 'USDJPY', 'USDJPY', 'USDJPY_chg_1D', 'USDJPY_chg_12M',
-        'US-JP 10Y', 'US_JP_10Y_spread', 'US_JP_10Y_spread_chg_12M',
-        'JPY_lev_percentile', 'USDJPY_vol30', 'USDJPY_vol_pct',
-        'USDJPY_spread_corr_60d', 'oil_usdjpy_corr_60d', 'dxy_usdjpy_corr_60d',
-        pair_color='#f0a500')
-
-    inr_card = _pair_card(
-        'USD/INR', 'USDINR', 'USDINR', 'USDINR_chg_1D', 'USDINR_chg_12M',
-        'US-IN 10Y', 'US_IN_10Y_spread', 'US_IN_10Y_spread_chg_12M',
-        None, None, None, None,
-        'oil_inr_corr_60d', 'dxy_inr_corr_60d',
-        pair_color='#e74c3c')
-
-    # ---- landing page CSS (injected into <head>) ----
-    lp_css = '''<style id="lp-styles">
-/* ---- Landing page (Page 0) ---- */
-.snap-page { height: 100vh; scroll-snap-align: start; display: flex; flex-direction: column; overflow: hidden; }
-#landing-page { padding: 22px 28px 16px; background: #0a0a0a; }
-.lp-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #1e1e1e; }
-.lp-fw-label { font-size: 8px; color: #444; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 3px; }
-.lp-brief-title { font-size: 15px; color: #fff; font-weight: 600; }
-.lp-ts { font-size: 9px; color: #444; text-align: right; line-height: 1.7; }
-.lp-markets { display: flex; gap: 22px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #1e1e1e; flex-shrink: 0; align-items: baseline; }
-.lp-asset { display: flex; align-items: baseline; gap: 6px; }
-.lp-asset-name { font-size: 8px; color: #555; letter-spacing: 0.1em; text-transform: uppercase; }
-.lp-asset-price { font-size: 13px; color: #fff; font-weight: 600; }
-.lp-pairs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; flex: 1; min-height: 0; overflow: hidden; }
-.lp-pair-card { background: #111; border: 1px solid #1e1e1e; border-radius: 4px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
-.lp-pair-name { font-size: 8px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; margin-bottom: 2px; }
-.lp-pair-price { font-size: 24px; color: #fff; font-weight: 700; line-height: 1.1; }
-.lp-pair-changes { display: flex; gap: 8px; font-size: 11px; margin-bottom: 3px; }
-.lp-sig-row { display: flex; justify-content: space-between; align-items: center; font-size: 10px; border-top: 1px solid #161616; padding-top: 3px; }
-.lp-sig-name { color: #555; }
-.lp-badge { padding: 1px 5px; border-radius: 2px; font-size: 8px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; }
-.lp-nav { display: flex; justify-content: center; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #1e1e1e; flex-shrink: 0; }
-.lp-nav-btn { padding: 5px 16px; border: 1px solid #2a2a2a; background: #141414; color: #555; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; text-decoration: none; border-radius: 3px; transition: color 0.15s, border-color 0.15s; }
-.lp-nav-btn:hover { color: #ccc; border-color: #555; }
-/* Hide legacy header + globalbar when landing page is present */
-.has-landing .globalbar, .has-landing .header { display: none !important; }
-/* Fixed bottom pair navigation */
-#pair-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 26px; background: rgba(10,10,10,0.95); backdrop-filter: blur(8px); border-top: 1px solid #1e1e1e; display: flex; justify-content: center; align-items: center; gap: 14px; z-index: 9999; }
-.pnav-btn { font-size: 9px; letter-spacing: 0.12em; color: #333; text-transform: uppercase; text-decoration: none; padding: 0 8px; transition: color 0.15s; }
-.pnav-btn.active { color: #fff; }
-.pnav-btn:hover { color: #888; }
-html { scroll-padding-bottom: 26px; }
-/* Chart fill — panes fill the entire chart-display-area */
-/* chart-fill-v2 */
-.chart-display-area { flex: 1; min-height: 0; position: relative; overflow: hidden; }
-.chart-display-area .chart-pane { position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; }
-.chart-display-area .chart-pane iframe { width: 100%; height: 100%; border: none; display: block; }
-</style>'''
-
-    if '<style id="lp-styles">' not in html_content:
-        html_content = html_content.replace('</head>', lp_css + '\n</head>', 1)
-
-    # ---- landing page HTML ----
-    landing_html = (
-        '<!-- LANDING PAGE -->\n'
-        '<div id="landing-page" class="snap-page">\n'
-        '  <div class="lp-header">\n'
-        '    <div>\n'
-        f'      <div class="lp-fw-label">G10 FX Regime Detection Framework</div>\n'
-        f'      <div class="lp-brief-title">{brief_title}</div>\n'
-        '    </div>\n'
-        '    <div class="lp-ts">\n'
-        + (f'      data as of: {data_as_of}<br>\n' if data_as_of else '')
-        + (f'      pipeline run: {run_ts}\n' if run_ts else '')
-        + '    </div>\n'
-        '  </div>\n'
-        f'  <div class="lp-markets">{market_row}</div>\n'
-        f'  <div class="lp-pairs">{eur_card}{jpy_card}{inr_card}</div>\n'
-        '  <div class="lp-nav">\n'
-        '    <a href="#card-eurusd" class="lp-nav-btn">EUR/USD &#9654;</a>\n'
-        '    <a href="#card-usdjpy" class="lp-nav-btn">USD/JPY &#9654;</a>\n'
-        '    <a href="#card-usdinr" class="lp-nav-btn">USD/INR &#9654;</a>\n'
-        '    <a href="#workspace-snap" class="lp-nav-btn">WORKSPACE &#9654;</a>\n'
-        '  </div>\n'
-        '</div>\n'
+    eur_rows = (
+        _mini_signal_row('Lev Money', eur_lev_str, '#fff', f'{eur_lev_pct:.0f}th pct', eur_lev_bdg) +
+        _mini_signal_row('Vol 30D', eur_vol_str, '#fff', eur_vol_lbl, eur_vol_bdg) +
+        _mini_signal_row('Regime Corr', eur_corr_str, eur_corr_col, eur_corr_lbl, eur_corr_bdg) +
+        _mini_signal_row('Oil Corr 60D', f'{eur_oil_corr:+.3f}' if not math.isnan(eur_oil_corr) else '\u2014', eur_oil_col, eur_oil_lbl, eur_oil_bdg) +
+        _mini_signal_row('DXY Corr 60D', f'{eur_dxy_corr:+.3f}' if not math.isnan(eur_dxy_corr) else '\u2014', eur_dxy_col, eur_dxy_lbl, eur_dxy_bdg)
+    ) if not math.isnan(eur_lev_pct) else (
+        _mini_signal_row('Regime Corr', eur_corr_str, eur_corr_col, eur_corr_lbl, eur_corr_bdg) +
+        _mini_signal_row('Oil Corr 60D', f'{eur_oil_corr:+.3f}' if not math.isnan(eur_oil_corr) else '\u2014', eur_oil_col, eur_oil_lbl, eur_oil_bdg) +
+        _mini_signal_row('DXY Corr 60D', f'{eur_dxy_corr:+.3f}' if not math.isnan(eur_dxy_corr) else '\u2014', eur_dxy_col, eur_dxy_lbl, eur_dxy_bdg)
     )
 
-    # Insert before <!-- MAIN CONTENT --> or <div class="content">
-    for anchor in ['<!-- MAIN CONTENT -->', '<div class="content">']:
-        if anchor in html_content:
-            html_content = html_content.replace(anchor, landing_html + anchor, 1)
-            break
+    jpy_rows = (
+        _mini_signal_row('Lev Money', jpy_lev_str, '#fff', f'{jpy_lev_pct:.0f}th pct', jpy_lev_bdg) +
+        _mini_signal_row('Vol 30D', jpy_vol_str, '#fff', jpy_vol_lbl, jpy_vol_bdg) +
+        _mini_signal_row('Regime Corr', jpy_corr_str, jpy_corr_col, jpy_corr_lbl, jpy_corr_bdg) +
+        _mini_signal_row('Oil Corr 60D', f'{jpy_oil_corr:+.3f}' if not math.isnan(jpy_oil_corr) else '\u2014', jpy_oil_col, jpy_oil_lbl, jpy_oil_bdg) +
+        _mini_signal_row('DXY Corr 60D', f'{jpy_dxy_corr:+.3f}' if not math.isnan(jpy_dxy_corr) else '\u2014', jpy_dxy_col, jpy_dxy_lbl, jpy_dxy_bdg)
+    ) if not math.isnan(jpy_lev_pct) else (
+        _mini_signal_row('Regime Corr', jpy_corr_str, jpy_corr_col, jpy_corr_lbl, jpy_corr_bdg) +
+        _mini_signal_row('Oil Corr 60D', f'{jpy_oil_corr:+.3f}' if not math.isnan(jpy_oil_corr) else '\u2014', jpy_oil_col, jpy_oil_lbl, jpy_oil_bdg) +
+        _mini_signal_row('DXY Corr 60D', f'{jpy_dxy_corr:+.3f}' if not math.isnan(jpy_dxy_corr) else '\u2014', jpy_dxy_col, jpy_dxy_lbl, jpy_dxy_bdg)
+    )
 
-    # Add has-landing class to <body>
-    if 'class="has-landing"' not in html_content:
-        html_content = html_content.replace('<body>', '<body class="has-landing">', 1)
+    inr_rows = (
+        _mini_signal_row('Oil Corr 60D', f'{inr_oil_corr:+.3f}' if not math.isnan(inr_oil_corr) else '\u2014', inr_oil_col, inr_oil_lbl, inr_oil_bdg) +
+        _mini_signal_row('DXY Corr 60D', f'{inr_dxy_corr:+.3f}' if not math.isnan(inr_dxy_corr) else '\u2014', inr_dxy_col, inr_dxy_lbl, inr_dxy_bdg)
+    )
 
+    eur_card = _pair_card('card-eurusd', '#4da6ff', 'EUR/USD', eur_price, eur_1d, eur_12m,
+                          eur_sp10_str, eur_sp10_dir, eur_sp10_col, eur_rows)
+    jpy_card = _pair_card('card-usdjpy', '#ff9944', 'USD/JPY', jpy_price, jpy_1d, jpy_12m,
+                          jpy_sp10_str, jpy_sp10_dir, jpy_sp10_col, jpy_rows)
+    inr_card = _pair_card('card-usdinr', '#e74c3c', 'USD/INR', inr_price, inr_1d, inr_12m,
+                          inr_sp10_str, inr_sp10_dir, inr_sp10_col, inr_rows)
+
+    from config import TODAY_FMT
+    landing_html = f'''<!-- LANDING PAGE -->
+<div id="landing">
+  <div class="lp-header">
+    <div class="lp-title-block">
+      <div class="lp-framework-label">G10 FX REGIME DETECTION FRAMEWORK</div>
+      <div class="lp-date">Morning Brief &mdash; {TODAY_FMT}</div>
+      <div class="lp-meta">data as of: {date_str} &nbsp;&nbsp;|&nbsp;&nbsp; pipeline run: {pd.Timestamp.now().strftime("%d %b %Y %H:%M")} IST</div>
+    </div>
+    <a href="#workspace-snap" class="lp-ws-btn">WORKSPACE &#9654;</a>
+  </div>
+  <div class="lp-ticker-bar">{ticker_html}</div>
+  <div class="lp-grid">
+    {eur_card}
+    {jpy_card}
+    {inr_card}
+  </div>
+  <div class="lp-nav-hint">&#8595; scroll to pair detail</div>
+</div>
+
+'''
+
+    # Insert before <div class="content">
+    html_content = html_content.replace('<div class="content">', landing_html + '<div class="content">', 1)
+
+    # Hide the old globalbar and header since landing page replaces them
+    html_content = html_content.replace(
+        '<!-- GLOBAL BAR -->',
+        '<!-- GLOBAL BAR (superseded by landing page) -->',
+    )
+    html_content = _re.sub(
+        r'(<!-- GLOBAL BAR \(superseded by landing page\) -->)\s*<div class="globalbar">[\s\S]*?</div>',
+        r'\1',
+        html_content,
+    )
+    html_content = html_content.replace(
+        '<!-- HEADER -->',
+        '<!-- HEADER (superseded by landing page) -->',
+    )
+    html_content = _re.sub(
+        r'(<!-- HEADER \(superseded by landing page\) -->)\s*<div class="header">[\s\S]*?</div>\s*</div>',
+        r'\1',
+        html_content,
+    )
+    return html_content
+
+
+def inject_bottom_nav(html_content):
+    """Inject fixed bottom navigation strip (idempotent)."""
+    if 'id="pair-nav"' in html_content:
+        return html_content
+    nav_css = '''/* ---- fixed bottom pair nav ---- */
+#pair-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    height: 32px; z-index: 9999;
+    background: rgba(10,10,10,0.93);
+    backdrop-filter: blur(6px);
+    display: flex; justify-content: center; align-items: center;
+    gap: 0; border-top: 1px solid #2a2a2a;
+}
+#pair-nav a {
+    font-size: 10px; letter-spacing: 0.12em; color: #555;
+    text-transform: uppercase; text-decoration: none;
+    padding: 0 20px; line-height: 32px; transition: color 0.15s;
+    border-right: 1px solid #1e1e1e;
+}
+#pair-nav a:last-child { border-right: none; }
+#pair-nav a.nav-active { color: #ffffff; }
+#pair-nav a:hover { color: #aaa; }
+.card { padding-bottom: 32px; }
+#landing { padding-bottom: 32px; }'''
+
+    nav_html = '''<nav id="pair-nav">
+  <a href="#landing">OVERVIEW</a>
+  <a href="#card-eurusd">EUR/USD</a>
+  <a href="#card-usdjpy">USD/JPY</a>
+  <a href="#card-usdinr">USD/INR</a>
+  <a href="#workspace-snap">WORKSPACE</a>
+</nav>'''
+
+    # Inject CSS before </style>
+    html_content = html_content.replace('</style>\n</head>', nav_css + '\n</style>\n</head>', 1)
+    # Inject nav HTML just before </body>
+    html_content = html_content.replace('</body>\n</html>', nav_html + '\n</body>\n</html>')
+    return html_content
+
+
+def inject_landing_css(html_content):
+    """Inject landing page CSS (idempotent)."""
+    if '#landing' in html_content:
+        return html_content
+    lp_css = '''/* ---- landing page ---- */
+#landing {
+    height: 100vh; scroll-snap-align: start;
+    display: flex; flex-direction: column;
+    background: #0a0a0a; padding: 24px 28px 32px;
+    box-sizing: border-box; overflow: hidden;
+}
+.lp-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 16px; flex-shrink: 0;
+}
+.lp-framework-label {
+    font-size: 9px; letter-spacing: 0.2em; color: #444;
+    text-transform: uppercase; margin-bottom: 4px;
+}
+.lp-date { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+.lp-meta { font-size: 10px; color: #555; }
+.lp-ws-btn {
+    display: inline-block; padding: 8px 16px;
+    background: #1a1a1a; border: 1px solid #333;
+    color: #888; font-size: 9px; letter-spacing: 0.15em;
+    text-transform: uppercase; text-decoration: none;
+    border-radius: 3px; flex-shrink: 0; align-self: center;
+    transition: color 0.15s, border-color 0.15s;
+}
+.lp-ws-btn:hover { color: #fff; border-color: #555; }
+.lp-ticker-bar {
+    display: flex; gap: 0; flex-shrink: 0;
+    background: #111; border: 1px solid #1e1e1e;
+    border-radius: 4px; padding: 8px 16px;
+    margin-bottom: 20px; overflow: hidden;
+}
+.lp-ticker-item {
+    display: flex; align-items: center; gap: 8px;
+    flex: 1; padding: 0 12px;
+    border-right: 1px solid #1e1e1e;
+}
+.lp-ticker-item:first-child { padding-left: 0; }
+.lp-ticker-item:last-child { border-right: none; }
+.lp-ticker-label { font-size: 9px; color: #555; letter-spacing: 0.1em; text-transform: uppercase; width: 52px; flex-shrink: 0; }
+.lp-ticker-price { font-size: 12px; color: #fff; font-weight: 600; }
+.lp-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    flex: 1; min-height: 0; overflow: hidden;
+}
+.lp-pair-card {
+    background: #111; border: 1px solid #1e1e1e;
+    border-radius: 4px; display: flex; flex-direction: column;
+    overflow: hidden;
+}
+.lp-card-header {
+    padding: 12px 14px 8px; background: #141414; flex-shrink: 0;
+}
+.lp-pair-label {
+    font-size: 10px; letter-spacing: 0.12em;
+    text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 6px;
+}
+.lp-price-block { display: flex; align-items: baseline; gap: 8px; }
+.lp-price { font-size: 22px; font-weight: 700; color: #fff; }
+.lp-1d { font-size: 14px; }
+.lp-12m-label { font-size: 9px; color: #444; text-transform: uppercase; letter-spacing: 0.1em; }
+.lp-12m { font-size: 11px; }
+.lp-spread-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 14px; background: #0d0d0d;
+    border-top: 1px solid #1e1e1e; border-bottom: 1px solid #1e1e1e; flex-shrink: 0;
+}
+.lp-spread-label { font-size: 9px; color: #444; text-transform: uppercase; letter-spacing: 0.08em; }
+.lp-spread-val { font-size: 12px; font-weight: 600; }
+.lp-signals { flex: 1; padding: 8px 14px; overflow: hidden; display: flex; flex-direction: column; gap: 4px; }
+.lc-row { display: flex; align-items: center; gap: 6px; }
+.lc-name { font-size: 9px; color: #555; text-transform: uppercase; letter-spacing: 0.06em; flex: 1; }
+.lc-val { font-size: 11px; font-variant-numeric: tabular-nums; min-width: 52px; text-align: right; }
+.lc-badge { font-size: 8px; padding: 1px 5px; border-radius: 2px; letter-spacing: 0.06em; }
+.lp-drilldown {
+    display: block; padding: 8px 14px; background: #0d0d0d;
+    border-top: 1px solid #1e1e1e; font-size: 9px;
+    color: #444; text-decoration: none; letter-spacing: 0.1em;
+    text-transform: uppercase; text-align: right; flex-shrink: 0;
+    transition: color 0.15s, background 0.15s;
+}
+.lp-drilldown:hover { color: #fff; background: #1a1a1a; }
+.lp-nav-hint {
+    text-align: center; font-size: 9px; color: #2a2a2a;
+    padding-top: 8px; letter-spacing: 0.15em; flex-shrink: 0;
+}
+/* badge-info variant for DOLLAR REGIME */
+.badge-info { background: #1a1a2a; color: #4da6ff; }'''
+
+    html_content = html_content.replace('</style>\n</head>', lp_css + '\n</style>\n</head>', 1)
     return html_content
 
 
@@ -441,6 +570,7 @@ def fig_to_iframe(fig, pair, pane, height=480):
         auto_open=False,
     )
     # brief lives in briefs/ so path to charts/ is ../charts/
+    # height:100% fills the absolute-positioned chart-pane which fills chart-display-area
     return (
         f'<iframe src="../{chart_file}" '
         f'style="width:100%;height:100%;border:none;display:block;" '
@@ -528,26 +658,43 @@ def generate_html_brief():
     html_content = update_globalbar(html_content, _re)
 
     # ------------------------------------------------------------------
-    # 1d. Inject landing page (Page 0) with live market overview
+    # 1d. Inject landing page CSS (before landing HTML so CSS is in <head>)
     # ------------------------------------------------------------------
-    html_content = inject_landing_page(html_content, _re)
+    html_content = inject_landing_css(html_content)
 
     # ------------------------------------------------------------------
-    # 1e. Add id attributes to pair cards + workspace for anchor nav
+    # 1e. Inject fixed bottom nav CSS + HTML
     # ------------------------------------------------------------------
-    for _pair_id, _pair_val in [('card-eurusd','eurusd'),('card-usdjpy','usdjpy'),('card-usdinr','usdinr')]:
-        if f'id="{_pair_id}"' not in html_content:
-            html_content = html_content.replace(
-                f'<div class="card" data-pair="{_pair_val}">',
-                f'<div class="card" id="{_pair_id}" data-pair="{_pair_val}">',
-                1,
-            )
-    if 'id="workspace-snap"' not in html_content:
-        html_content = html_content.replace(
-            '<div class="workspace-snap">',
-            '<div class="workspace-snap" id="workspace-snap">',
-            1,
-        )
+    html_content = inject_bottom_nav(html_content)
+
+    # ------------------------------------------------------------------
+    # 1f. Strip legacy landing page from prior sessions (idempotent)
+    # ------------------------------------------------------------------
+    # Remove old <style id="lp-styles"> block
+    html_content = _re.sub(
+        r'\n?<style id="lp-styles">[\s\S]*?</style>\n?',
+        '',
+        html_content,
+    )
+    # Remove old id="landing-page" block
+    html_content = _re.sub(
+        r'\n?<!-- LANDING PAGE -->\n<div id="landing-page"[\s\S]*?</div>\n?<!-- MAIN CONTENT -->',
+        '\n<!-- MAIN CONTENT -->',
+        html_content,
+    )
+    # Remove orphan header-right div left behind by old globalbar/header stripper
+    html_content = _re.sub(
+        r'<!-- HEADER \(superseded by landing page\) -->[\s\S]*?</div>\s*</div>\s*\n',
+        '<!-- HEADER (superseded by landing page) -->\n',
+        html_content,
+    )
+    # Remove old body class="has-landing" (use clean body tag)
+    html_content = html_content.replace('<body class="has-landing">', '<body>')
+
+    # ------------------------------------------------------------------
+    # 1g. Inject full-screen landing overview page (Page 0)
+    # ------------------------------------------------------------------
+    html_content = inject_landing_page(html_content, _re)
 
     # ------------------------------------------------------------------
     # 2. CSS patches (idempotent — cascade through version history)
@@ -762,11 +909,20 @@ def generate_html_brief():
     # ------------------------------------------------------------------
     html_content = html_content.replace(
         'style="display:block; width:100%;"',
-        'style="visibility:visible; position:relative; pointer-events:auto; width:100%;"',
+        'style="visibility:visible; position:absolute; pointer-events:auto; width:100%; height:100%;"',
     )
     html_content = html_content.replace(
         'style="display:none; width:100%;"',
+        'style="visibility:hidden; position:absolute; pointer-events:none; width:100%; height:100%;"',
+    )
+    # Also normalise any existing brief_template pane styles (idempotent)
+    html_content = html_content.replace(
+        'style="visibility:visible; position:relative; pointer-events:auto; width:100%;"',
+        'style="visibility:visible; position:absolute; pointer-events:auto; width:100%; height:100%;"',
+    )
+    html_content = html_content.replace(
         'style="visibility:hidden; position:absolute; pointer-events:none; width:100%;"',
+        'style="visibility:hidden; position:absolute; pointer-events:none; width:100%; height:100%;"',
     )
 
     # ------------------------------------------------------------------
@@ -784,13 +940,6 @@ def generate_html_brief():
     #    (iframes are self-contained; no Plotly.Plots.resize needed)
     # ------------------------------------------------------------------
     tab_handler = '''
-// Normalise all panes inside .chart-display-area to position:absolute fill
-document.querySelectorAll('.chart-display-area .chart-pane').forEach(function(p) {
-  p.style.position = 'absolute';
-  p.style.top = '0'; p.style.right = '0'; p.style.bottom = '0'; p.style.left = '0';
-  p.style.width = '100%'; p.style.height = '100%';
-});
-
 document.querySelectorAll('.chart-tab').forEach(function(tab) {
   tab.addEventListener('click', function() {
     var pair   = this.dataset.pair;
@@ -802,14 +951,17 @@ document.querySelectorAll('.chart-tab').forEach(function(tab) {
     document.querySelectorAll('.chart-pane[data-pair="' + pair + '"]')
       .forEach(function(p) {
         p.style.visibility    = 'hidden';
+        p.style.position      = 'absolute';
         p.style.pointerEvents = 'none';
       });
 
     this.classList.add('active');
+
     var pane = document.querySelector(
       '.chart-pane[data-pair="' + pair + '"][data-pane="' + tabIdx + '"]'
     );
     pane.style.visibility    = 'visible';
+    pane.style.position      = 'absolute';
     pane.style.pointerEvents = 'auto';
   });
 });
@@ -820,46 +972,30 @@ document.querySelectorAll('.regime-toggle').forEach(function(lbl) {
   });
 });
 
-// Pair nav active state via IntersectionObserver
-if (typeof IntersectionObserver !== 'undefined') {
-  var _navBtns = document.querySelectorAll('.pnav-btn[data-target]');
-  if (_navBtns.length) {
-    var _io = new IntersectionObserver(function(entries) {
-      entries.forEach(function(e) {
-        if (e.isIntersecting) {
-          _navBtns.forEach(function(a) { a.classList.remove('active'); });
-          var a = document.querySelector('.pnav-btn[data-target="' + e.target.id + '"]');
-          if (a) a.classList.add('active');
-        }
-      });
-    }, { threshold: 0.5 });
-    ['landing-page','card-eurusd','card-usdjpy','card-usdinr','workspace-snap'].forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el) _io.observe(el);
+// Bottom nav active state via IntersectionObserver
+(function() {
+  var navLinks = document.querySelectorAll('#pair-nav a');
+  var targets  = ['landing', 'card-eurusd', 'card-usdjpy', 'card-usdinr', 'workspace-snap'];
+  var io = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (e.isIntersecting && e.intersectionRatio >= 0.5) {
+        navLinks.forEach(function(a) { a.classList.remove('nav-active'); });
+        var link = document.querySelector('#pair-nav a[href="#' + e.target.id + '"]');
+        if (link) link.classList.add('nav-active');
+      }
     });
-  }
-}
+  }, {threshold: 0.5});
+  targets.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) io.observe(el);
+  });
+})();
 '''
 
     all_scripts = list(_re.finditer(r'(<script>)(.*?)(</script>)', html_content, _re.DOTALL))
     if all_scripts:
         m = all_scripts[-1]
         html_content = html_content[:m.start(2)] + tab_handler + html_content[m.end(2):]
-
-    # ------------------------------------------------------------------
-    # 5b. Inject fixed bottom pair nav (idempotent)
-    # ------------------------------------------------------------------
-    if 'id="pair-nav"' not in html_content:
-        _nav_html = (
-            '<nav id="pair-nav">\n'
-            '  <a href="#landing-page" class="pnav-btn" data-target="landing-page">HOME</a>\n'
-            '  <a href="#card-eurusd" class="pnav-btn" data-target="card-eurusd">EUR/USD</a>\n'
-            '  <a href="#card-usdjpy" class="pnav-btn" data-target="card-usdjpy">USD/JPY</a>\n'
-            '  <a href="#card-usdinr" class="pnav-btn" data-target="card-usdinr">USD/INR</a>\n'
-            '  <a href="#workspace-snap" class="pnav-btn" data-target="workspace-snap">WS</a>\n'
-            '</nav>\n'
-        )
-        html_content = html_content.replace('</body>', _nav_html + '</body>', 1)
 
     # ------------------------------------------------------------------
     # 6. Write output

@@ -246,6 +246,7 @@ body {
 }
 /* ---- full-screen scroll-snap ---- */
 html { scroll-snap-type: y mandatory; overflow-y: scroll; }
+#landing { height: 100vh; scroll-snap-align: start; }
 .content { padding: 0; gap: 0; }
 .card { height: 100vh; scroll-snap-align: start; border-radius: 0;
         border-left: none; border-right: none;
@@ -266,91 +267,80 @@ html { scroll-snap-type: y mandatory; overflow-y: scroll; }
     font-size: 10px;
     color: #555;
 }
-</style>
-<style id="lp-styles">
-/* ---- Landing page (Page 0) ---- */
-.snap-page { height: 100vh; scroll-snap-align: start; display: flex; flex-direction: column; overflow: hidden; }
-#landing-page { padding: 22px 28px 16px; background: #0a0a0a; }
-.lp-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #1e1e1e; }
-.lp-fw-label { font-size: 8px; color: #444; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 3px; }
-.lp-brief-title { font-size: 15px; color: #fff; font-weight: 600; }
-.lp-ts { font-size: 9px; color: #444; text-align: right; line-height: 1.7; }
-.lp-markets { display: flex; gap: 22px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #1e1e1e; flex-shrink: 0; align-items: baseline; }
-.lp-asset { display: flex; align-items: baseline; gap: 6px; }
-.lp-asset-name { font-size: 8px; color: #555; letter-spacing: 0.1em; text-transform: uppercase; }
-.lp-asset-price { font-size: 13px; color: #fff; font-weight: 600; }
-.lp-pairs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; flex: 1; min-height: 0; overflow: hidden; }
-.lp-pair-card { background: #111; border: 1px solid #1e1e1e; border-radius: 4px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
-.lp-pair-name { font-size: 8px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; margin-bottom: 2px; }
-.lp-pair-price { font-size: 24px; color: #fff; font-weight: 700; line-height: 1.1; }
-.lp-pair-changes { display: flex; gap: 8px; font-size: 11px; margin-bottom: 3px; }
-.lp-sig-row { display: flex; justify-content: space-between; align-items: center; font-size: 10px; border-top: 1px solid #161616; padding-top: 3px; }
-.lp-sig-name { color: #555; }
-.lp-badge { padding: 1px 5px; border-radius: 2px; font-size: 8px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; }
-.lp-nav { display: flex; justify-content: center; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #1e1e1e; flex-shrink: 0; }
-.lp-nav-btn { padding: 5px 16px; border: 1px solid #2a2a2a; background: #141414; color: #555; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; text-decoration: none; border-radius: 3px; transition: color 0.15s, border-color 0.15s; }
-.lp-nav-btn:hover { color: #ccc; border-color: #555; }
-/* Hide legacy header + globalbar when landing page is present */
-.has-landing .globalbar, .has-landing .header { display: none !important; }
-/* Fixed bottom pair navigation */
-#pair-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 26px; background: rgba(10,10,10,0.95); backdrop-filter: blur(8px); border-top: 1px solid #1e1e1e; display: flex; justify-content: center; align-items: center; gap: 14px; z-index: 9999; }
-.pnav-btn { font-size: 9px; letter-spacing: 0.12em; color: #333; text-transform: uppercase; text-decoration: none; padding: 0 8px; transition: color 0.15s; }
-.pnav-btn.active { color: #fff; }
-.pnav-btn:hover { color: #888; }
-html { scroll-padding-bottom: 26px; }
-/* Chart fill — panes fill the entire chart-display-area */
-/* chart-fill-v2 */
-.chart-display-area { flex: 1; min-height: 0; position: relative; overflow: hidden; }
-.chart-display-area .chart-pane { position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; }
-.chart-display-area .chart-pane iframe { width: 100%; height: 100%; border: none; display: block; }
-</style>
-</head>
-<body class="has-landing">
+</style></head>
+<body>
 
-<!-- GLOBAL BAR -->
-<div class="globalbar">
-  DXY 99.32 <span style="color:#00d4aa">+0.56%</span>
-  &nbsp;|&nbsp; Brent $85.41 <span style="color:#00d4aa">+4.93%</span>
-  &nbsp;|&nbsp; Gold $5,065 <span style="color:#ff4444">-1.07%</span>
-  &nbsp;|&nbsp; COT: 02 Mar 2026
-  &nbsp;|&nbsp; Next COT: 06 Mar 2026
-  &nbsp;|&nbsp; All prices: prior session close
-</div>
+<!-- GLOBAL BAR (superseded by landing page) -->
 
-<!-- HEADER -->
-<div class="header">
-  <div class="header-left">
-    <div class="label">G10 FX Regime Detection Framework</div>
-    <div class="title">Morning Brief &mdash; Wednesday, 04 March 2026</div>
-  </div>
-  <div class="header-right">
-    data as of: 02 Mar 2026<br>
-    pipeline run: 04 Mar 2026 15:14 IST
-  </div>
-</div>
-
-<!-- LANDING PAGE -->
-<div id="landing-page" class="snap-page">
-  <div class="lp-header">
-    <div>
-      <div class="lp-fw-label">G10 FX Regime Detection Framework</div>
-      <div class="lp-brief-title">Morning Brief &mdash; Wednesday, 04 March 2026</div>
-    </div>
-    <div class="lp-ts">
-      data as of: 02 Mar 2026<br>
-      pipeline run: 04 Mar 2026 15:14 IST
-    </div>
-  </div>
-  <div class="lp-markets"><div class="lp-asset"><span class="lp-asset-name">DXY</span><span class="lp-asset-price">99.32</span><span style="color:#00d4aa;font-size:11px">+0.56%</span></div><div class="lp-asset"><span class="lp-asset-name">Brent</span><span class="lp-asset-price">85.41</span><span style="color:#00d4aa;font-size:11px">+4.93%</span></div><div class="lp-asset"><span class="lp-asset-name">Gold</span><span class="lp-asset-price">5,065</span><span style="color:#ff4444;font-size:11px">-1.07%</span></div></div>
-  <div class="lp-pairs"><div class="lp-pair-card"><div class="lp-pair-name" style="color:#4da6ff">EUR/USD</div><div class="lp-pair-price">1.1636</div><div class="lp-pair-changes"><span style="color:#00d4aa">+0.20%</span><span style="color:#2a2a2a">|</span><span style="color:#00d4aa">12M +10.74%</span></div><div class="lp-sig-row"><span class="lp-sig-name">US-DE 10Y</span><span style="display:flex;align-items:center;gap:4px"><span style="color:#888">0.723%</span><span style="color:#00d4aa;font-size:9px">-1.22pp</span></span></div><div class="lp-sig-row"><span class="lp-sig-name">COT Lev</span><span style="display:flex;align-items:center;gap:4px"><span style="color:#888">95th</span><span class="lp-badge" style="background:#2a1a00;color:#f0a500">CROWDED LONG</span></span></div><div class="lp-sig-row"><span class="lp-sig-name">30D Vol</span><span style="display:flex;align-items:center;gap:4px"><span style="color:#888">8.9%</span><span class="lp-badge" style="background:#1a1a1a;color:#888888">NORMAL</span></span></div><div class="lp-sig-row"><span class="lp-sig-name">60D Corr</span><span style="display:flex;align-items:center;gap:4px"><span style="color:#888">-0.159</span><span class="lp-badge" style="background:#2a0000;color:#ff4444">BROKEN</span></span></div><div class="lp-sig-row"><span class="lp-sig-name">Oil corr</span><span style="display:flex;align-items:center;gap:4px"><span style="color:#888">+0.050</span><span class="lp-badge" style="background:#1a1a1a;color:#555555">LOW</span></span></div><div class="lp-sig-row"><span class="lp-sig-name">DXY corr</span><span style="display:flex;align-items:center;gap:4px"><span style="color:#888">-0.464</span><span class="lp-badge" style="background:#1a1a1a;color:#888888">MIXED</span></span></div></div><div class="lp-pair-card"><div class="lp-pair-name" style="color:#f0a500">USD/JPY</div><div class="lp-pair-price">156.98</div><div class="lp-pair-changes"><span style="color:#ff4444">-0.50%</span><span style="color:#2a2a2a">|</span><span style="color:#00d4aa">12M +3.11%</span></div><div class="lp-sig-row"><span class="lp-sig-name">US-JP 10Y</span><span style="display:flex;align-items:center;gap:4px"><span style="color:#888">1.406%</span><span style="color:#00d4aa;font-size:9px">-1.66pp</span></span></div><div class="lp-sig-row"><span class="lp-sig-name">COT Lev</span><span style="display:flex;align-items:center;gap:4px"><span style="color:#888">69th</span><span class="lp-badge" style="background:#1a1a1a;color:#666666">NEUTRAL</span></span></div><div class="lp-sig-row"><span class="lp-sig-name">30D Vol</span><span style="display:flex;align-items:center;gap:4px"><span style="color:#888">12.5%</span><span class="lp-badge" style="background:#1a1a1a;color:#888888">NORMAL</span></span></div><div class="lp-sig-row"><span class="lp-sig-name">60D Corr</span><span style="display:flex;align-items:center;gap:4px"><span style="color:#888">+0.209</span><span class="lp-badge" style="background:#2a0000;color:#ff4444">BROKEN</span></span></div><div class="lp-sig-row"><span class="lp-sig-name">Oil corr</span><span style="display:flex;align-items:center;gap:4px"><span style="color:#888">+0.017</span><span class="lp-badge" style="background:#1a1a1a;color:#555555">LOW</span></span></div><div class="lp-sig-row"><span class="lp-sig-name">DXY corr</span><span style="display:flex;align-items:center;gap:4px"><span style="color:#888">+0.351</span><span class="lp-badge" style="background:#1a1a1a;color:#888888">MIXED</span></span></div></div><div class="lp-pair-card"><div class="lp-pair-name" style="color:#e74c3c">USD/INR</div><div class="lp-pair-price">92.009</div><div class="lp-pair-changes"><span style="color:#00d4aa">+0.49%</span><span style="color:#2a2a2a">|</span><span style="color:#00d4aa">12M +8.41%</span></div><div class="lp-sig-row"><span class="lp-sig-name">US-IN 10Y</span><span style="display:flex;align-items:center;gap:4px"><span style="color:#888">-3.190%</span><span style="color:#00d4aa;font-size:9px">-0.56pp</span></span></div><div class="lp-sig-row"><span class="lp-sig-name">Oil corr</span><span style="display:flex;align-items:center;gap:4px"><span style="color:#888">-0.057</span><span class="lp-badge" style="background:#1a1a1a;color:#555555">LOW</span></span></div><div class="lp-sig-row"><span class="lp-sig-name">DXY corr</span><span style="display:flex;align-items:center;gap:4px"><span style="color:#888">-0.128</span><span class="lp-badge" style="background:#1a2a1a;color:#00d4aa">INDIA SPECIFIC</span></span></div></div></div>
-  <div class="lp-nav">
-    <a href="#card-eurusd" class="lp-nav-btn">EUR/USD &#9654;</a>
-    <a href="#card-usdjpy" class="lp-nav-btn">USD/JPY &#9654;</a>
-    <a href="#card-usdinr" class="lp-nav-btn">USD/INR &#9654;</a>
-    <a href="#workspace-snap" class="lp-nav-btn">WORKSPACE &#9654;</a>
-  </div>
-</div>
+<!-- HEADER (superseded by landing page) -->
 <!-- MAIN CONTENT -->
+<!-- LANDING PAGE -->
+<div id="landing">
+  <div class="lp-header">
+    <div class="lp-title-block">
+      <div class="lp-framework-label">G10 FX REGIME DETECTION FRAMEWORK</div>
+      <div class="lp-date">Morning Brief &mdash; Friday, 06 March 2026</div>
+      <div class="lp-meta">data as of: 04 Mar 2026 &nbsp;&nbsp;|&nbsp;&nbsp; pipeline run: 06 Mar 2026 17:36 IST</div>
+    </div>
+    <a href="#workspace-snap" class="lp-ws-btn">WORKSPACE &#9654;</a>
+  </div>
+  <div class="lp-ticker-bar"><div class="lp-ticker-item"><span class="lp-ticker-label">DXY</span><span class="lp-ticker-price">99.32</span><span style="color:#00d4aa;font-size:11px">+0.56%</span></div><div class="lp-ticker-item"><span class="lp-ticker-label">EUR/USD</span><span class="lp-ticker-price">1.1636</span><span style="color:#00d4aa;font-size:11px">+0.20%</span></div><div class="lp-ticker-item"><span class="lp-ticker-label">USD/JPY</span><span class="lp-ticker-price">156.98</span><span style="color:#ff4444;font-size:11px">-0.50%</span></div><div class="lp-ticker-item"><span class="lp-ticker-label">USD/INR</span><span class="lp-ticker-price">92.01</span><span style="color:#00d4aa;font-size:11px">+0.49%</span></div><div class="lp-ticker-item"><span class="lp-ticker-label">Brent</span><span class="lp-ticker-price">$85.41</span><span style="color:#00d4aa;font-size:11px">+4.93%</span></div><div class="lp-ticker-item"><span class="lp-ticker-label">Gold</span><span class="lp-ticker-price">$5,065</span><span style="color:#ff4444;font-size:11px">-1.07%</span></div></div>
+  <div class="lp-grid">
+    <div class="lp-pair-card">
+          <div class="lp-card-header" style="border-top:3px solid #4da6ff">
+            <span class="lp-pair-label" style="color:#4da6ff">EUR/USD</span>
+            <div class="lp-price-block">
+              <span class="lp-price">1.1636</span>
+              <span class="lp-1d"><span style="color:#00d4aa;font-size:14px">+0.20%</span></span>
+              <span class="lp-12m-label">12M</span>
+              <span class="lp-12m"><span style="color:#00d4aa;font-size:11px">+10.74%</span></span>
+            </div>
+          </div>
+          <div class="lp-spread-row">
+            <span class="lp-spread-label">Rate Spread (10Y)</span>
+            <span class="lp-spread-val" style="color:#ff4444">↑ 0.72%</span>
+          </div>
+          <div class="lp-signals"><div class="lc-row"><span class="lc-name">Lev Money</span><span class="lc-val" style="color:#fff">95th</span><span class="lc-badge badge-danger">95th pct</span></div><div class="lc-row"><span class="lc-name">Vol 30D</span><span class="lc-val" style="color:#fff">8.9%</span><span class="lc-badge badge-neutral">NORMAL</span></div><div class="lc-row"><span class="lc-name">Regime Corr</span><span class="lc-val" style="color:#ff4444">-0.159</span><span class="lc-badge badge-danger">BROKEN</span></div><div class="lc-row"><span class="lc-name">Oil Corr 60D</span><span class="lc-val" style="color:#888">+0.050</span><span class="lc-badge badge-neutral">LOW</span></div><div class="lc-row"><span class="lc-name">DXY Corr 60D</span><span class="lc-val" style="color:#888">-0.464</span><span class="lc-badge badge-neutral">MIXED</span></div></div>
+          <a class="lp-drilldown" href="#card-eurusd">View Detail →</a>
+        </div>
+    <div class="lp-pair-card">
+          <div class="lp-card-header" style="border-top:3px solid #ff9944">
+            <span class="lp-pair-label" style="color:#ff9944">USD/JPY</span>
+            <div class="lp-price-block">
+              <span class="lp-price">156.98</span>
+              <span class="lp-1d"><span style="color:#ff4444;font-size:14px">-0.50%</span></span>
+              <span class="lp-12m-label">12M</span>
+              <span class="lp-12m"><span style="color:#00d4aa;font-size:11px">+3.11%</span></span>
+            </div>
+          </div>
+          <div class="lp-spread-row">
+            <span class="lp-spread-label">Rate Spread (10Y)</span>
+            <span class="lp-spread-val" style="color:#ff4444">↑ 1.41%</span>
+          </div>
+          <div class="lp-signals"><div class="lc-row"><span class="lc-name">Lev Money</span><span class="lc-val" style="color:#fff">69th</span><span class="lc-badge badge-neutral">69th pct</span></div><div class="lc-row"><span class="lc-name">Vol 30D</span><span class="lc-val" style="color:#fff">12.5%</span><span class="lc-badge badge-neutral">NORMAL</span></div><div class="lc-row"><span class="lc-name">Regime Corr</span><span class="lc-val" style="color:#ff4444">+0.209</span><span class="lc-badge badge-danger">BROKEN</span></div><div class="lc-row"><span class="lc-name">Oil Corr 60D</span><span class="lc-val" style="color:#888">+0.017</span><span class="lc-badge badge-neutral">LOW</span></div><div class="lc-row"><span class="lc-name">DXY Corr 60D</span><span class="lc-val" style="color:#888">+0.351</span><span class="lc-badge badge-neutral">MIXED</span></div></div>
+          <a class="lp-drilldown" href="#card-usdjpy">View Detail →</a>
+        </div>
+    <div class="lp-pair-card">
+          <div class="lp-card-header" style="border-top:3px solid #e74c3c">
+            <span class="lp-pair-label" style="color:#e74c3c">USD/INR</span>
+            <div class="lp-price-block">
+              <span class="lp-price">92.01</span>
+              <span class="lp-1d"><span style="color:#00d4aa;font-size:14px">+0.49%</span></span>
+              <span class="lp-12m-label">12M</span>
+              <span class="lp-12m"><span style="color:#00d4aa;font-size:11px">+8.41%</span></span>
+            </div>
+          </div>
+          <div class="lp-spread-row">
+            <span class="lp-spread-label">Rate Spread (10Y)</span>
+            <span class="lp-spread-val" style="color:#ff4444">↑ -3.19%</span>
+          </div>
+          <div class="lp-signals"><div class="lc-row"><span class="lc-name">Oil Corr 60D</span><span class="lc-val" style="color:#888">-0.057</span><span class="lc-badge badge-neutral">LOW</span></div><div class="lc-row"><span class="lc-name">DXY Corr 60D</span><span class="lc-val" style="color:#00d4aa">-0.128</span><span class="lc-badge badge-success">INDIA SPECIFIC</span></div></div>
+          <a class="lp-drilldown" href="#card-usdinr">View Detail →</a>
+        </div>
+  </div>
+  <div class="lp-nav-hint">&#8595; scroll to pair detail</div>
+</div>
+
 <div class="content">
 
   <div class="card" id="card-eurusd" data-pair="eurusd">
@@ -437,16 +427,16 @@ html { scroll-padding-bottom: 26px; }
           <button class="chart-tab" data-pair="eurusd" data-tab="3">CROSS ASSET</button>
         </div>
         <div class="chart-display-area">
-          <div class="chart-pane" data-pair="eurusd" data-pane="0" style="visibility:visible; position:relative; pointer-events:auto; width:100%;">
+          <div class="chart-pane" data-pair="eurusd" data-pane="0" style="visibility:visible; position:absolute; pointer-events:auto; width:100%; height:100%;">
 <iframe src="charts/eurusd_0.html" style="width:100%;height:100%;border:none;display:block;" loading="eager" scrolling="no"></iframe>
           </div>
-          <div class="chart-pane" data-pair="eurusd" data-pane="1" style="visibility:hidden; position:absolute; pointer-events:none; width:100%;">
+          <div class="chart-pane" data-pair="eurusd" data-pane="1" style="visibility:hidden; position:absolute; pointer-events:none; width:100%; height:100%;">
 <iframe src="charts/eurusd_1.html" style="width:100%;height:100%;border:none;display:block;" loading="eager" scrolling="no"></iframe>
           </div>
-          <div class="chart-pane" data-pair="eurusd" data-pane="2" style="visibility:hidden; position:absolute; pointer-events:none; width:100%;">
+          <div class="chart-pane" data-pair="eurusd" data-pane="2" style="visibility:hidden; position:absolute; pointer-events:none; width:100%; height:100%;">
 <iframe src="charts/eurusd_2.html" style="width:100%;height:100%;border:none;display:block;" loading="eager" scrolling="no"></iframe>
           </div>
-          <div class="chart-pane" data-pair="eurusd" data-pane="3" style="visibility:hidden; position:absolute; pointer-events:none; width:100%;">
+          <div class="chart-pane" data-pair="eurusd" data-pane="3" style="visibility:hidden; position:absolute; pointer-events:none; width:100%; height:100%;">
 <iframe src="charts/eurusd_3.html" style="width:100%;height:100%;border:none;display:block;" loading="eager" scrolling="no"></iframe>
           </div>
         </div>
@@ -538,16 +528,16 @@ html { scroll-padding-bottom: 26px; }
           <button class="chart-tab" data-pair="usdjpy" data-tab="3">CROSS ASSET</button>
         </div>
         <div class="chart-display-area">
-          <div class="chart-pane" data-pair="usdjpy" data-pane="0" style="visibility:visible; position:relative; pointer-events:auto; width:100%;">
+          <div class="chart-pane" data-pair="usdjpy" data-pane="0" style="visibility:visible; position:absolute; pointer-events:auto; width:100%; height:100%;">
 <iframe src="charts/usdjpy_0.html" style="width:100%;height:100%;border:none;display:block;" loading="eager" scrolling="no"></iframe>
           </div>
-          <div class="chart-pane" data-pair="usdjpy" data-pane="1" style="visibility:hidden; position:absolute; pointer-events:none; width:100%;">
+          <div class="chart-pane" data-pair="usdjpy" data-pane="1" style="visibility:hidden; position:absolute; pointer-events:none; width:100%; height:100%;">
 <iframe src="charts/usdjpy_1.html" style="width:100%;height:100%;border:none;display:block;" loading="eager" scrolling="no"></iframe>
           </div>
-          <div class="chart-pane" data-pair="usdjpy" data-pane="2" style="visibility:hidden; position:absolute; pointer-events:none; width:100%;">
+          <div class="chart-pane" data-pair="usdjpy" data-pane="2" style="visibility:hidden; position:absolute; pointer-events:none; width:100%; height:100%;">
 <iframe src="charts/usdjpy_2.html" style="width:100%;height:100%;border:none;display:block;" loading="eager" scrolling="no"></iframe>
           </div>
-          <div class="chart-pane" data-pair="usdjpy" data-pane="3" style="visibility:hidden; position:absolute; pointer-events:none; width:100%;">
+          <div class="chart-pane" data-pair="usdjpy" data-pane="3" style="visibility:hidden; position:absolute; pointer-events:none; width:100%; height:100%;">
 <iframe src="charts/usdjpy_3.html" style="width:100%;height:100%;border:none;display:block;" loading="eager" scrolling="no"></iframe>
           </div>
         </div>
@@ -620,10 +610,10 @@ html { scroll-padding-bottom: 26px; }
           <button class="chart-tab" data-pair="usdinr" data-tab="1">CROSS ASSET</button>
         </div>
         <div class="chart-display-area">
-          <div class="chart-pane" data-pair="usdinr" data-pane="0" style="visibility:visible; position:relative; pointer-events:auto; width:100%;">
+          <div class="chart-pane" data-pair="usdinr" data-pane="0" style="visibility:visible; position:absolute; pointer-events:auto; width:100%; height:100%;">
 <iframe src="charts/usdinr_0.html" style="width:100%;height:100%;border:none;display:block;" loading="eager" scrolling="no"></iframe>
           </div>
-          <div class="chart-pane" data-pair="usdinr" data-pane="1" style="visibility:hidden; position:absolute; pointer-events:none; width:100%;">
+          <div class="chart-pane" data-pair="usdinr" data-pane="1" style="visibility:hidden; position:absolute; pointer-events:none; width:100%; height:100%;">
 <iframe src="charts/usdinr_1.html" style="width:100%;height:100%;border:none;display:block;" loading="eager" scrolling="no"></iframe>
           </div>
         </div>
@@ -649,13 +639,6 @@ html { scroll-padding-bottom: 26px; }
 </div>
 
 <script>
-// Normalise all panes inside .chart-display-area to position:absolute fill
-document.querySelectorAll('.chart-display-area .chart-pane').forEach(function(p) {
-  p.style.position = 'absolute';
-  p.style.top = '0'; p.style.right = '0'; p.style.bottom = '0'; p.style.left = '0';
-  p.style.width = '100%'; p.style.height = '100%';
-});
-
 document.querySelectorAll('.chart-tab').forEach(function(tab) {
   tab.addEventListener('click', function() {
     var pair   = this.dataset.pair;
@@ -667,14 +650,17 @@ document.querySelectorAll('.chart-tab').forEach(function(tab) {
     document.querySelectorAll('.chart-pane[data-pair="' + pair + '"]')
       .forEach(function(p) {
         p.style.visibility    = 'hidden';
+        p.style.position      = 'absolute';
         p.style.pointerEvents = 'none';
       });
 
     this.classList.add('active');
+
     var pane = document.querySelector(
       '.chart-pane[data-pair="' + pair + '"][data-pane="' + tabIdx + '"]'
     );
     pane.style.visibility    = 'visible';
+    pane.style.position      = 'absolute';
     pane.style.pointerEvents = 'auto';
   });
 });
@@ -685,25 +671,24 @@ document.querySelectorAll('.regime-toggle').forEach(function(lbl) {
   });
 });
 
-// Pair nav active state via IntersectionObserver
-if (typeof IntersectionObserver !== 'undefined') {
-  var _navBtns = document.querySelectorAll('.pnav-btn[data-target]');
-  if (_navBtns.length) {
-    var _io = new IntersectionObserver(function(entries) {
-      entries.forEach(function(e) {
-        if (e.isIntersecting) {
-          _navBtns.forEach(function(a) { a.classList.remove('active'); });
-          var a = document.querySelector('.pnav-btn[data-target="' + e.target.id + '"]');
-          if (a) a.classList.add('active');
-        }
-      });
-    }, { threshold: 0.5 });
-    ['landing-page','card-eurusd','card-usdjpy','card-usdinr','workspace-snap'].forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el) _io.observe(el);
+// Bottom nav active state via IntersectionObserver
+(function() {
+  var navLinks = document.querySelectorAll('#pair-nav a');
+  var targets  = ['landing', 'card-eurusd', 'card-usdjpy', 'card-usdinr', 'workspace-snap'];
+  var io = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (e.isIntersecting && e.intersectionRatio >= 0.5) {
+        navLinks.forEach(function(a) { a.classList.remove('nav-active'); });
+        var link = document.querySelector('#pair-nav a[href="#' + e.target.id + '"]');
+        if (link) link.classList.add('nav-active');
+      }
     });
-  }
-}
+  }, {threshold: 0.5});
+  targets.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) io.observe(el);
+  });
+})();
 </script>
 
 <nav id="pair-nav">
