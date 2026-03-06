@@ -322,8 +322,15 @@ def build_brief(df):
     # COT data is weekly -- find the actual COT date (last non-NaN)
     cot_date = "n/a"
     if os.path.exists("data/cot_latest.csv"):
-        cot_raw = pd.read_csv("data/cot_latest.csv", index_col=0, parse_dates=True)
+        cot_raw  = pd.read_csv("data/cot_latest.csv", index_col=0, parse_dates=True)
         cot_date = str(cot_raw.index[-1].date())
+
+    # IN 10Y freshness -- find last non-NaN date in the loaded data
+    in10y_date = "n/a"
+    if "IN_10Y" in df.columns:
+        in10y_valid = df["IN_10Y"].dropna()
+        if len(in10y_valid) > 0:
+            in10y_date = str(in10y_valid.index[-1].date())
 
     # -- interpretations --
     eur_read = _eur_interpretation(
@@ -358,7 +365,7 @@ def build_brief(df):
     lines.append("=" * W)
     lines.append(f"  G10 FX MORNING BRIEF")
     lines.append(f"  {TODAY_FMT}")
-    lines.append(f"  data as of: {as_of}  |  COT as of: {cot_date}")
+    lines.append(f"  FX as of: {as_of}  |  IN 10Y as of: {in10y_date}  |  COT as of: {cot_date}")
     lines.append("=" * W)
 
     # ── PRICES ────────────────────────────────────────────────────────────────

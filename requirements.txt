@@ -6,3 +6,4 @@ fredapi
 python-dotenv
 requests
 plotly
+openpyxl

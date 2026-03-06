@@ -191,6 +191,19 @@ def inject_landing_page(html_content, _re):
         row = df.iloc[-1]
         last_date = df.index[-1]
         date_str  = last_date.strftime('%d %b %Y')
+        # IN 10Y freshness
+        in10y_date_str = "n/a"
+        if "IN_10Y" in df.columns:
+            in10y_valid = df["IN_10Y"].dropna()
+            if len(in10y_valid) > 0:
+                in10y_date_str = in10y_valid.index[-1].strftime('%d %b %Y')
+        # COT freshness
+        cot_date_str = "n/a"
+        try:
+            cot_raw = pd.read_csv('data/cot_latest.csv', index_col=0, parse_dates=True)
+            cot_date_str = cot_raw.index[-1].strftime('%d %b %Y')
+        except Exception:
+            pass
     except Exception:
         return html_content
 
@@ -381,7 +394,7 @@ def inject_landing_page(html_content, _re):
     <div class="lp-title-block">
       <div class="lp-framework-label">G10 FX REGIME DETECTION FRAMEWORK</div>
       <div class="lp-date">Morning Brief &mdash; {TODAY_FMT}</div>
-      <div class="lp-meta">data as of: {date_str} &nbsp;&nbsp;|&nbsp;&nbsp; pipeline run: {pd.Timestamp.now().strftime("%d %b %Y %H:%M")} IST</div>
+      <div class="lp-meta">FX as of: {date_str} &nbsp;&nbsp;|&nbsp;&nbsp; IN 10Y as of: {in10y_date_str} &nbsp;&nbsp;|&nbsp;&nbsp; COT as of: {cot_date_str} &nbsp;&nbsp;|&nbsp;&nbsp; run: {pd.Timestamp.now().strftime("%d %b %Y %H:%M")} IST</div>
     </div>
     <a href="#workspace-snap" class="lp-ws-btn">WORKSPACE &#9654;</a>
   </div>
