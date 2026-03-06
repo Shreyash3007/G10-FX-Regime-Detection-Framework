@@ -32,5 +32,6 @@ CHART_REGISTRY = {
     ("usdjpy", 3): (build_cross_asset_chart,     "usdjpy", 460),
 
     ("usdinr", 0): (build_fundamentals_chart,    "usdinr", 320),
-    ("usdinr", 1): (build_cross_asset_chart,     "usdinr", 460),
+    ("usdinr", 1): (build_vol_correlation_chart, "usdinr", 360),
+    ("usdinr", 2): (build_cross_asset_chart,     "usdinr", 460),
 }

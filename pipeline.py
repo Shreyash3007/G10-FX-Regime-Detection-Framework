@@ -80,13 +80,9 @@ def fetch_fx_data():
     prices.index = pd.to_datetime(prices.index)
     prices.index.name = "date"
 
-    # align FX data to New York close convention (global FX standard)
-    # 1. ensure the index is timezone-aware by localizing to UTC if naive
-    if prices.index.tz is None:
-        prices.index = prices.index.tz_localize('UTC')
-    # 2. convert to New York time
-    prices.index = prices.index.tz_convert('America/New_York')
-    # 3. convert to plain date-only index (no timezone, no time component)
+    # yfinance daily bars already carry the correct calendar date — just strip
+    # any time/tz component without shifting via tz_convert (tz_convert shifts
+    # midnight UTC back 5 h → T-2 bug on NY closing data)
     prices.index = pd.to_datetime(prices.index.date)
 
     prices = prices[prices.index.date < pd.Timestamp(TODAY).date()]
@@ -131,10 +127,7 @@ def fetch_commodity_data():
     prices.index = pd.to_datetime(prices.index)
     prices.index.name = "date"
 
-    # tz handling: same as FX
-    if prices.index.tz is None:
-        prices.index = prices.index.tz_localize('UTC')
-    prices.index = prices.index.tz_convert('America/New_York')
+    # yfinance daily bars already carry the correct calendar date
     prices.index = pd.to_datetime(prices.index.date)
 
     prices = prices[prices.index.date < pd.Timestamp(TODAY).date()]
@@ -362,7 +355,7 @@ def calculate_differentials(yields_df):
 def calculate_volatility(master):
     print("\n[VOL] calculating realized volatility...")
 
-    for pair in ["EURUSD", "USDJPY"]:
+    for pair in ["EURUSD", "USDJPY", "USDINR"]:
         if pair not in master.columns:
             continue
         log_ret = np.log(master[pair] / master[pair].shift(1))
@@ -371,7 +364,7 @@ def calculate_volatility(master):
         )
 
     window_3y = 252 * 3
-    for pair in ["EURUSD", "USDJPY"]:
+    for pair in ["EURUSD", "USDJPY", "USDINR"]:
         col = f"{pair}_vol30"
         if col not in master.columns:
             continue
@@ -381,7 +374,7 @@ def calculate_volatility(master):
             .rank(pct=True) * 100
         )
 
-    for pair in ["EURUSD", "USDJPY"]:
+    for pair in ["EURUSD", "USDJPY", "USDINR"]:
         col     = f"{pair}_vol30"
         pct_col = f"{pair}_vol_pct"
         if col not in master.columns:

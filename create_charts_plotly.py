@@ -231,7 +231,9 @@ def build_fundamentals_chart(pair):
             spread_2y='US_IN_policy_spread',
             label_10y='IN 10Y',
             label_2y='IN policy',
-            subtitle='negative = India yields higher = INR strength'
+            legend_10y='US 2Y \u2013 IN 10Y (cross)',
+            legend_2y='US 2Y \u2013 IN Repo Rate',
+            subtitle='cross spread: US 2Y vs India rates \u2014 negative = INR strength'
         )
     }
     
@@ -278,7 +280,7 @@ def build_fundamentals_chart(pair):
             y=d[cfg['spread_10y']],
             mode='lines',
             line=dict(color='#2980b9', width=1.5),
-            name=f"US\u2013{cfg['label_10y']} spread",
+            name=cfg.get('legend_10y', f"US\u2013{cfg['label_10y']} spread"),
             showlegend=True,
             hovertemplate='%{x|%d %b %Y}<br>%{y:.2f}%<extra></extra>',
         ),
@@ -290,7 +292,7 @@ def build_fundamentals_chart(pair):
             y=d[cfg['spread_2y']],
             mode='lines',
             line=dict(color='#e67e22', width=1.5),
-            name=f"US\u2013{cfg['label_2y']} spread",
+            name=cfg.get('legend_2y', f"US\u2013{cfg['label_2y']} spread"),
             showlegend=True,
             hovertemplate='%{x|%d %b %Y}<br>%{y:.2f}%<extra></extra>',
         ),
@@ -716,11 +718,7 @@ def build_positioning_chart(pair):
 # ============================================================================
 
 def build_vol_correlation_chart(pair):
-    """Build volatility and correlation chart for eurusd or usdjpy only."""
-    
-    if pair == 'usdinr':
-        # USDINR has no vol data currently
-        return None
+    """Build volatility and correlation chart for eurusd, usdjpy, or usdinr."""
     
     # Configuration
     configs = {
@@ -728,6 +726,7 @@ def build_vol_correlation_chart(pair):
             vol_col='EURUSD_vol30',
             pct_col='EURUSD_vol_pct',
             corr_col='EURUSD_spread_corr_60d',
+            corr_name='Regime Corr (60D)',
             color='#4da6ff',
             fill_color='rgba(77,166,255,0.12)',
             other_vol='USDJPY_vol30',
@@ -737,8 +736,19 @@ def build_vol_correlation_chart(pair):
             vol_col='USDJPY_vol30',
             pct_col='USDJPY_vol_pct',
             corr_col='USDJPY_spread_corr_60d',
+            corr_name='Regime Corr (60D)',
             color='#ff9944',
             fill_color='rgba(255,153,68,0.12)',
+            other_vol='EURUSD_vol30',
+            other_label='EUR/USD'
+        ),
+        'usdinr': dict(
+            vol_col='USDINR_vol30',
+            pct_col='USDINR_vol_pct',
+            corr_col='oil_inr_corr_60d',
+            corr_name='Oil Corr (60D)',
+            color='#e74c3c',
+            fill_color='rgba(231,76,60,0.12)',
             other_vol='EURUSD_vol30',
             other_label='EUR/USD'
         )
@@ -807,7 +817,7 @@ def build_vol_correlation_chart(pair):
             y=d[cfg['corr_col']],
             mode='lines',
             line=dict(color='#aaaaaa', width=1.5),
-            name='Regime Corr (60D)',
+            name=cfg.get('corr_name', 'Regime Corr (60D)'),
             showlegend=True,
             hovertemplate='%{x|%d %b %Y}<br>%{y:.3f}<extra></extra>',
         ),

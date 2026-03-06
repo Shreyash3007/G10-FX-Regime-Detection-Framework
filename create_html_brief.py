@@ -228,16 +228,16 @@ def inject_landing_page(html_content, _re):
 
     def _cot_badge(pct):
         if math.isnan(pct): return '\u2014', 'badge-neutral'
-        if pct >= 90: return f'{pct:.0f}th', 'badge-danger'
-        if pct >= 75: return f'{pct:.0f}th', 'badge-warning'
-        if pct <= 25: return f'{pct:.0f}th', 'badge-danger'
-        return f'{pct:.0f}th', 'badge-neutral'
+        if pct >= 90: return f'{pct:.0f}th %ile', 'badge-danger'
+        if pct >= 75: return f'{pct:.0f}th %ile', 'badge-warning'
+        if pct <= 25: return f'{pct:.0f}th %ile', 'badge-danger'
+        return f'{pct:.0f}th %ile', 'badge-neutral'
 
     def _vol_badge(pct):
         if math.isnan(pct): return '\u2014%', '\u2014', 'badge-neutral', 'NORMAL'
-        if pct >= 90: return f'{pct:.0f}th', 'badge-danger', 'EXTREME'
-        if pct >= 75: return f'{pct:.0f}th', 'badge-warning', 'ELEVATED'
-        return f'{pct:.0f}th', 'badge-neutral', 'NORMAL'
+        if pct >= 90: return f'{pct:.0f}th %ile', 'badge-danger', 'EXTREME'
+        if pct >= 75: return f'{pct:.0f}th %ile', 'badge-warning', 'ELEVATED'
+        return f'{pct:.0f}th %ile', 'badge-neutral', 'NORMAL'
 
     # --- EUR/USD mini-card ---
     eur_price       = _price_fmt('EURUSD', 4)
@@ -305,6 +305,10 @@ def inject_landing_page(html_content, _re):
     inr_dxy_lbl, _ = _dxy_corr_label(inr_dxy_corr, 'USDINR') if not math.isnan(inr_dxy_corr) else ('NO DATA', '')
     inr_dxy_col     = '#4da6ff' if inr_dxy_lbl == 'DOLLAR REGIME' else '#00d4aa' if 'SPECIFIC' in inr_dxy_lbl else '#888'
     inr_dxy_bdg     = 'badge-info' if inr_dxy_lbl == 'DOLLAR REGIME' else 'badge-success' if 'SPECIFIC' in inr_dxy_lbl else 'badge-neutral'
+    inr_vol_pct     = _g('USDINR_vol_pct', float('nan'))
+    inr_vol30       = _g('USDINR_vol30', float('nan'))
+    inr_vol_str     = f'{inr_vol30:.1f}%' if not math.isnan(inr_vol30) else '\u2014'
+    inr_vol_pctile, inr_vol_bdg, inr_vol_lbl = _vol_badge(inr_vol_pct) if not math.isnan(inr_vol_pct) else ('\u2014', 'badge-neutral', 'NORMAL')
 
     # --- Cross-asset ticker bar ---
     dxy_val        = _g('DXY')
@@ -335,7 +339,7 @@ def inject_landing_page(html_content, _re):
 
     def _pair_card(pair_id, color, display, price_str, chg_1d, chg_12m,
                    spread_str, spread_dir, spread_col,
-                   rows_html):
+                   rows_html, spread_label='Rate Spread (10Y)'):
         return f'''<div class="lp-pair-card">
           <div class="lp-card-header" style="border-top:3px solid {color}">
             <span class="lp-pair-label" style="color:{color}">{display}</span>
@@ -347,7 +351,7 @@ def inject_landing_page(html_content, _re):
             </div>
           </div>
           <div class="lp-spread-row">
-            <span class="lp-spread-label">Rate Spread (10Y)</span>
+            <span class="lp-spread-label">{spread_label}</span>
             <span class="lp-spread-val" style="color:{spread_col}">{spread_dir} {spread_str}</span>
           </div>
           <div class="lp-signals">{rows_html}</div>
@@ -379,6 +383,7 @@ def inject_landing_page(html_content, _re):
     )
 
     inr_rows = (
+        _mini_signal_row('Vol 30D', inr_vol_str, '#fff', inr_vol_lbl, inr_vol_bdg) +
         _mini_signal_row('Oil Corr 60D', f'{inr_oil_corr:+.3f}' if not math.isnan(inr_oil_corr) else '\u2014', inr_oil_col, inr_oil_lbl, inr_oil_bdg) +
         _mini_signal_row('DXY Corr 60D', f'{inr_dxy_corr:+.3f}' if not math.isnan(inr_dxy_corr) else '\u2014', inr_dxy_col, inr_dxy_lbl, inr_dxy_bdg)
     )
@@ -388,7 +393,8 @@ def inject_landing_page(html_content, _re):
     jpy_card = _pair_card('card-usdjpy', '#ff9944', 'USD/JPY', jpy_price, jpy_1d, jpy_12m,
                           jpy_sp10_str, jpy_sp10_dir, jpy_sp10_col, jpy_rows)
     inr_card = _pair_card('card-usdinr', '#e74c3c', 'USD/INR', inr_price, inr_1d, inr_12m,
-                          inr_sp10_str, inr_sp10_dir, inr_sp10_col, inr_rows)
+                          inr_sp10_str, inr_sp10_dir, inr_sp10_col, inr_rows,
+                          spread_label='US 2Y\u2013IN 10Y (cross)')
 
     from config import TODAY_FMT
     landing_html = f'''<!-- LANDING PAGE -->

@@ -375,6 +375,22 @@ def build_and_save(price_df, yield_df, fpi_df, fpi_status):
                     master["USDINR"] / master["USDINR"].shift(days) - 1
                 ) * 100
 
+        # USDINR realized volatility (30D annualized) + 3Y percentile rank
+        if "USDINR" in master.columns:
+            import numpy as _np
+            log_ret = _np.log(master["USDINR"] / master["USDINR"].shift(1))
+            master["USDINR_vol30"] = log_ret.rolling(window=30).std() * _np.sqrt(252) * 100
+            window_3y = 252 * 3
+            master["USDINR_vol_pct"] = (
+                master["USDINR_vol30"]
+                .rolling(window=window_3y, min_periods=126)
+                .rank(pct=True) * 100
+            )
+            v = master["USDINR_vol30"].dropna().iloc[-1]
+            p = master["USDINR_vol_pct"].dropna().iloc[-1]
+            flag = "EXTREME" if p >= 90 else ("ELEVATED" if p >= 75 else "NORMAL")
+            print(f"    USDINR vol: {v:.1f}% annualized | {p:.0f}th pct | {flag}")
+
         # oil correlation for INR (Phase 1)
         # Brent is fetched by pipeline.py and lives in master at this point
         if "Brent" in master.columns and "USDINR" in master.columns:
