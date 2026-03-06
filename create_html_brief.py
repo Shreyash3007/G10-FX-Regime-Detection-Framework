@@ -6,7 +6,7 @@ import numpy as np
 import sys
 from core.utils import ordinal, embed_image, fmt_pct, color_class
 from config import TODAY, TODAY_FMT, DATE_SLUG
-from morning_brief import _oil_corr_label, _dxy_corr_label
+from morning_brief import _oil_corr_label, _dxy_corr_label, _eur_interpretation, _jpy_interpretation
 
 
 # ============================================================================
@@ -63,6 +63,299 @@ def _value_color_for(label):
     if label == 'DOLLAR REGIME':
         return '#f0a500'
     return '#555555'   # LOW, NO DATA
+
+def inject_live_card_data(html_content, _re):
+    """
+    Regenerate every pair card's header (price, changes, badge) and entire
+    brief-left panel (spreads, COT, vol, regime read) with live values from
+    data/latest_with_cot.csv so the detail page always matches the landing page.
+    """
+    try:
+        df  = pd.read_csv('data/latest_with_cot.csv', index_col=0, parse_dates=True)
+        row = df.iloc[-1]
+    except Exception:
+        return html_content
+
+    def _g(col, default=float('nan')):
+        v = row.get(col, default)
+        try:
+            fv = float(v)
+            return default if math.isnan(fv) else fv
+        except Exception:
+            return default
+
+    def _chg_col(val):  return '#00d4aa' if val >= 0 else '#ff4444'
+    def _sign(val):     return '+' if val > 0 else ''
+
+    def _pct_fmt(val):
+        if math.isnan(val): return '\u2014', '#888'
+        return f'{_sign(val)}{val:.2f}%', _chg_col(val)
+
+    def _pp_fmt(val, favor_narrow=True):
+        if math.isnan(val): return '\u2014', '#888'
+        color = '#00d4aa' if (val < 0) == favor_narrow else '#ff4444'
+        return f'{_sign(val)}{val:.2f}pp', color
+
+    def _vol_pctile_badge(pct):
+        if math.isnan(pct): return '\u2014', 'badge-neutral', '\u2014'
+        s = f'{pct:.0f}th %ile'
+        if pct >= 90: return s, 'badge-danger',  'EXTREME'
+        if pct >= 75: return s, 'badge-warning', 'ELEVATED'
+        return s, 'badge-neutral', 'NORMAL'
+
+    def _corr_badge(corr):
+        if math.isnan(corr): return '\u2014', '#555', 'badge-neutral', 'NO DATA'
+        if corr >= 0.6:  return f'{corr:+.3f}', '#00d4aa', 'badge-success',  'INTACT'
+        if corr >= 0.3:  return f'{corr:+.3f}', '#888',    'badge-neutral',  'WEAKENING'
+        if corr >= -0.3: return f'{corr:+.3f}', '#ff4444', 'badge-danger',   'BROKEN'
+        return f'{corr:+.3f}', '#f0a500', 'badge-warning', 'INVERTED'
+
+    def _header_badge(lev_pct, lev_net, am_pct, am_net):
+        if math.isnan(lev_pct) and math.isnan(am_pct):
+            return 'RATE DIFF ONLY', 'badge-neutral-card'
+        if not math.isnan(lev_pct) and lev_pct >= 80 and not math.isnan(lev_net) and lev_net > 0:
+            return 'CROWDED LONG', 'badge-crowded-long'
+        if not math.isnan(lev_pct) and lev_pct <= 20 and not math.isnan(lev_net) and lev_net < 0:
+            return 'CROWDED SHORT', 'badge-crowded-short'
+        return 'NEUTRAL', 'badge-neutral-card'
+
+    def _spread_row(name, val, chg, favor_narrow=True):
+        val_str = f'{val:.2f}%' if not math.isnan(val) else '\u2014'
+        chg_str, c = _pp_fmt(chg, favor_narrow)
+        return (f'<div class="brief-row">'
+                f'<span class="name">{name}</span>'
+                f'<span class="val">{val_str}</span>'
+                f'<span class="pct" style="color:{c}">{chg_str}</span></div>\n          ')
+
+    def _cot_row(name, net, pctoi, pct_rank):
+        if math.isnan(net): return ''
+        net_str   = f'{net:+,.0f}'
+        direction = 'LONG' if net > 0 else 'SHORT'
+        if not math.isnan(pct_rank):
+            pct_str = f'{pct_rank:.0f}th %ile'
+            if pct_rank >= 85:   bdg_cls, bdg_lbl = 'badge-danger',  f'CROWDED {direction}'
+            elif pct_rank >= 70: bdg_cls, bdg_lbl = 'badge-warning', 'EXTENDED'
+            elif pct_rank <= 15: bdg_cls, bdg_lbl = 'badge-danger',  f'CROWDED {direction}'
+            else:                bdg_cls, bdg_lbl = 'badge-neutral', f'NEUTRAL {direction}'
+        else:
+            pct_str, bdg_cls, bdg_lbl = '\u2014', 'badge-neutral', '\u2014'
+        net_col = _chg_col(net)
+        return (f'<div class="brief-row"><span class="name">{name}</span>'
+                f'<span class="pct" style="color:{net_col}">{net_str}</span>'
+                f'<span class="pct">{pct_str}</span>'
+                f'<span class="badge-mini {bdg_cls}">{bdg_lbl}</span></div>\n          ')
+
+    def _vol_row(vol_val, pct_val):
+        vol_str = f'{vol_val:.1f}%' if not math.isnan(vol_val) else '\u2014'
+        pctile_str, bdg_cls, bdg_lbl = _vol_pctile_badge(pct_val)
+        return (f'<div class="brief-row"><span class="name">30D Vol</span>'
+                f'<span class="val">{vol_str}</span>'
+                f'<span class="pct">{pctile_str}</span>'
+                f'<span class="badge-mini {bdg_cls}">{bdg_lbl}</span></div>\n          ')
+
+    def _corr_row(corr_val):
+        corr_str, color, bdg_cls, bdg_lbl = _corr_badge(corr_val)
+        return (f'<div class="brief-row"><span class="name">60D Corr</span>'
+                f'<span class="pct" style="color:{color}">{corr_str}</span>'
+                f'<span></span>'
+                f'<span class="badge-mini {bdg_cls}">{bdg_lbl}</span></div>\n          ')
+
+    def _field_row(label, field, pair_key, is_oil):
+        raw = _g(field)
+        if math.isnan(raw):
+            val_str, color, bdg_cls, bdg_lbl = '\u2014', '#555', 'badge-neutral', 'NO DATA'
+        else:
+            val_str = f'{raw:+.3f}'
+            bdg_lbl, _ = (_oil_corr_label(raw, pair_key) if is_oil
+                          else _dxy_corr_label(raw, pair_key))
+            color   = _value_color_for(bdg_lbl)
+            bdg_cls = _badge_class_for(bdg_lbl)
+        return (f'<div class="brief-row"><span class="name">{label}</span>'
+                f'<span class="pct" style="color:{color}" data-field="{field}">{val_str}</span>'
+                f'<span></span>'
+                f'<span class="badge-mini {bdg_cls}" data-badge="{field}">{bdg_lbl}</span>'
+                f'</div>\n          ')
+
+    def _df_chg_1w(col):
+        """5-row difference for spread columns not pre-computed by pipeline."""
+        try:
+            s = df[col].dropna()
+            return float(s.iloc[-1]) - float(s.iloc[-6]) if len(s) >= 6 else float('nan')
+        except Exception:
+            return float('nan')
+
+    pairs_cfg = {
+        'eurusd': dict(
+            price_col='EURUSD', price_dec=4,
+            chg_1d='EURUSD_chg_1D', chg_12m='EURUSD_chg_12M',
+            spreads=[
+                ('US-DE 10Y', 'US_DE_10Y_spread', 'US_DE_10Y_spread_chg_1W', True),
+                ('US-DE 2Y',  'US_DE_2Y_spread',  'US_DE_2Y_spread_chg_1W',  True),
+            ],
+            cot_lev_net='EUR_lev_net',   cot_lev_pctoi='EUR_lev_pct_oi',   cot_lev_pct='EUR_lev_percentile',
+            cot_am_net='EUR_assetmgr_net', cot_am_pctoi='EUR_assetmgr_pct_oi', cot_am_pct='EUR_assetmgr_percentile',
+            vol_col='EURUSD_vol30', vol_pct_col='EURUSD_vol_pct',
+            corr_col='EURUSD_spread_corr_60d',
+            oil_field='oil_eurusd_corr_60d', oil_pair='EURUSD',
+            dxy_field='dxy_eurusd_corr_60d', dxy_pair='EURUSD',
+        ),
+        'usdjpy': dict(
+            price_col='USDJPY', price_dec=2,
+            chg_1d='USDJPY_chg_1D', chg_12m='USDJPY_chg_12M',
+            spreads=[
+                ('US-JP 10Y', 'US_JP_10Y_spread', 'US_JP_10Y_spread_chg_1W', True),
+                ('US-JP 2Y',  'US_JP_2Y_spread',  'US_JP_2Y_spread_chg_1W',  True),
+            ],
+            cot_lev_net='JPY_lev_net',   cot_lev_pctoi='JPY_lev_pct_oi',   cot_lev_pct='JPY_lev_percentile',
+            cot_am_net='JPY_assetmgr_net', cot_am_pctoi='JPY_assetmgr_pct_oi', cot_am_pct='JPY_assetmgr_percentile',
+            vol_col='USDJPY_vol30', vol_pct_col='USDJPY_vol_pct',
+            corr_col='USDJPY_spread_corr_60d',
+            oil_field='oil_usdjpy_corr_60d', oil_pair='USDJPY',
+            dxy_field='dxy_usdjpy_corr_60d', dxy_pair='USDJPY',
+        ),
+        'usdinr': dict(
+            price_col='USDINR', price_dec=2,
+            chg_1d='USDINR_chg_1D', chg_12m='USDINR_chg_12M',
+            spreads=[
+                ('US-IN 10Y',    'US_IN_10Y_spread',    None, True),
+                ('US-IN Policy', 'US_IN_policy_spread', None, True),
+            ],
+            cot_lev_net=None, cot_lev_pctoi=None, cot_lev_pct=None,
+            cot_am_net=None,  cot_am_pctoi=None,  cot_am_pct=None,
+            vol_col='USDINR_vol30', vol_pct_col='USDINR_vol_pct',
+            corr_col=None,
+            oil_field='oil_inr_corr_60d', oil_pair='USDINR',
+            dxy_field='dxy_inr_corr_60d', dxy_pair='USDINR',
+        ),
+    }
+
+    for pair, cfg in pairs_cfg.items():
+        card_anchor = f'id="card-{pair}"'
+        anchor_pos  = html_content.find(card_anchor)
+        if anchor_pos == -1:
+            continue
+        card_start = html_content.rfind('<div', 0, anchor_pos)
+
+        next_card = html_content.find('<div class="card" id="card-', card_start + 1)
+        ws_snap   = html_content.find('<div class="workspace-snap">', card_start)
+        boundaries = [x for x in [next_card, ws_snap] if x != -1]
+        card_end   = min(boundaries) if boundaries else len(html_content)
+        card_html  = html_content[card_start:card_end]
+
+        # ---- card-header spans ----
+        price_val        = _g(cfg['price_col'])
+        chg_1d_val       = _g(cfg['chg_1d'])
+        chg_12m_val      = _g(cfg['chg_12m'])
+        price_str        = f"{price_val:.{cfg['price_dec']}f}" if not math.isnan(price_val) else '\u2014'
+        chg_1d_str,  c1d = _pct_fmt(chg_1d_val)
+        chg_12m_str, c12 = _pct_fmt(chg_12m_val)
+        lev_pct = _g(cfg['cot_lev_pct']) if cfg['cot_lev_pct'] else float('nan')
+        lev_net = _g(cfg['cot_lev_net']) if cfg['cot_lev_net'] else float('nan')
+        am_pct  = _g(cfg['cot_am_pct'])  if cfg['cot_am_pct']  else float('nan')
+        am_net  = _g(cfg['cot_am_net'])  if cfg['cot_am_net']  else float('nan')
+        badge_txt, badge_cls = _header_badge(lev_pct, lev_net, am_pct, am_net)
+
+        card_html = _re.sub(r'(<span class="ch-price">)[^<]*(</span>)',
+                            rf'\g<1>{price_str}\g<2>', card_html, count=1)
+        card_html = _re.sub(r'<span class="ch-1d"[^>]*>[^<]*</span>',
+                            f'<span class="ch-1d" style="color:{c1d}">{chg_1d_str}</span>',
+                            card_html, count=1)
+        card_html = _re.sub(r'<span class="ch-12m"[^>]*>[^<]*</span>',
+                            f'<span class="ch-12m" style="color:{c12}">{chg_12m_str}</span>',
+                            card_html, count=1)
+        card_html = _re.sub(r'<span class="ch-badge [^"]*">[^<]*</span>',
+                            f'<span class="ch-badge {badge_cls}">{badge_txt}</span>',
+                            card_html, count=1)
+
+        # ---- brief-left sections ----
+        spread_rows = ''
+        for name, val_col, chg_col, favor_narrow in cfg['spreads']:
+            val = _g(val_col)
+            chg = _g(chg_col) if chg_col else _df_chg_1w(val_col)
+            spread_rows += _spread_row(name, val, chg, favor_narrow)
+        spread_section = (f'<div class="brief-section">\n          '
+                          f'<div class="brief-label">RATE DIFFERENTIALS</div>\n          '
+                          f'{spread_rows}</div>')
+
+        if cfg['cot_lev_pct']:
+            lev_pctoi = _g(cfg['cot_lev_pctoi'])
+            am_pctoi  = _g(cfg['cot_am_pctoi'])
+            cot_body  = (_cot_row('Lev Money', lev_net, lev_pctoi, lev_pct)
+                         + _cot_row('Asset Mgr', am_net,  am_pctoi,  am_pct))
+            cot_section = (f'<div class="brief-section">\n          '
+                           f'<div class="brief-label">POSITIONING (COT)</div>\n          '
+                           f'{cot_body}</div>')
+        else:
+            cot_section = ('<div class="brief-section">\n          '
+                           '<div class="brief-label">POSITIONING (COT)</div>\n          '
+                           '<div class="brief-muted">FPI proxy unavailable</div>\n          </div>')
+
+        vol_val  = _g(cfg['vol_col'])
+        vol_pct  = _g(cfg['vol_pct_col'])
+        corr_val = _g(cfg['corr_col']) if cfg['corr_col'] else float('nan')
+        vc = _vol_row(vol_val, vol_pct)
+        if cfg['corr_col']:
+            vc += _corr_row(corr_val)
+        vc += _field_row('Oil corr 60D', cfg['oil_field'], cfg['oil_pair'], is_oil=True)
+        vc += _field_row('DXY corr 60D', cfg['dxy_field'], cfg['dxy_pair'], is_oil=False)
+        vol_section = (f'<div class="brief-section">\n          '
+                       f'<div class="brief-label">VOLATILITY &amp; CORRELATION</div>\n          '
+                       f'{vc}</div>')
+
+        # ---- regime read (regenerated from live data) ----
+        if pair == 'eurusd':
+            de10_today  = _g('US_DE_10Y_spread')
+            de10_12m    = _g('US_DE_10Y_spread_chg_12M')
+            regime_text = _eur_interpretation(de10_today, de10_12m, lev_pct, lev_net, am_pct, am_net)
+            eur_vol_pct = _g('EURUSD_vol_pct')
+            if not math.isnan(eur_vol_pct):
+                if eur_vol_pct >= 90:  regime_text += ' vol EXTREME \u2014 forced liquidation risk, fundamental signals unreliable.'
+                elif eur_vol_pct >= 75: regime_text += ' vol elevated \u2014 positioning signals less reliable.'
+        elif pair == 'usdjpy':
+            jp10_today  = _g('US_JP_10Y_spread')
+            jp10_12m    = _g('US_JP_10Y_spread_chg_12M')
+            regime_text = _jpy_interpretation(jp10_today, jp10_12m, lev_pct, lev_net, am_pct, am_net)
+            jpy_vol_pct = _g('USDJPY_vol_pct')
+            if not math.isnan(jpy_vol_pct):
+                if jpy_vol_pct >= 90:  regime_text += ' vol EXTREME \u2014 forced liquidation risk, fundamental signals unreliable.'
+                elif jpy_vol_pct >= 75: regime_text += ' vol elevated \u2014 positioning signals less reliable.'
+        else:  # usdinr
+            in10_spr = _g('US_IN_10Y_spread')
+            in10_str = f'{in10_spr:.2f}%' if not math.isnan(in10_spr) else '\u2014'
+            prem     = abs(in10_spr) if not math.isnan(in10_spr) else 0.0
+            if not math.isnan(in10_spr) and in10_spr < 0:
+                regime_text = (f'US-IN spread at {in10_str}. India yield premium intact at {prem:.2f}pp. '
+                               f'Rate differential favors INR strength. FPI positioning data pending.')
+            else:
+                regime_text = (f'US-IN spread at {in10_str}. Rate differential needs monitoring. '
+                               f'FPI positioning data pending.')
+
+        regime_section = (
+            '<div class="brief-section regime-read">\n          '
+            '<div class="brief-label regime-toggle">REGIME READ '
+            '<span class="regime-arrow">\u25b6</span></div>\n          '
+            f'<div class="brief-text">{regime_text}</div>\n        </div>'
+        )
+
+        new_brief_left = ('\n      <div class="brief-left">\n\n'
+                          f'        {spread_section}\n\n'
+                          f'        {cot_section}\n\n'
+                          f'        {vol_section}\n\n'
+                          f'        {regime_section}\n'
+                          '      </div>')
+
+        bl_idx = card_html.find('<div class="brief-left">')
+        br_idx = card_html.find('<div class="brief-right">')
+        if bl_idx != -1 and br_idx != -1:
+            card_html = (card_html[:bl_idx]
+                         + new_brief_left
+                         + '\n\n      '
+                         + card_html[br_idx:])
+
+        html_content = html_content[:card_start] + card_html + html_content[card_end:]
+
+    return html_content
+
 
 def inject_cross_asset_values(html_content, _re):
     """Replace data-field / data-badge spans with live corr values from CSV."""
@@ -751,6 +1044,11 @@ def generate_html_brief():
     # 1c. Update globalbar with live prices + colored 1D changes
     # ------------------------------------------------------------------
     html_content = update_globalbar(html_content, _re)
+
+    # ------------------------------------------------------------------
+    # 1d-pre. Inject live data into all pair card headers + brief-left panels
+    # ------------------------------------------------------------------
+    html_content = inject_live_card_data(html_content, _re)
 
     # ------------------------------------------------------------------
     # 1d. Inject landing page CSS (before landing HTML so CSS is in <head>)
