@@ -29,7 +29,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    padding: 16px 20px;
+    padding: 8px 20px;
     border-bottom: 1px solid #1e1e1e;
 }
 .header-left .label {
@@ -40,7 +40,7 @@ body {
     margin-bottom: 6px;
 }
 .header-left .title {
-    font-size: 20px;
+    font-size: 14px;
     font-weight: 600;
     color: #ffffff;
 }
@@ -71,10 +71,10 @@ body {
     border-bottom: 1px solid #2a2a2a;
 }
 .ch-pair {
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
-    color: #ffffff;
-    letter-spacing: 1px;
+    color: #888;
+    letter-spacing: 1.5px;
 }
 .ch-price {
     font-size: 15px;
@@ -173,13 +173,18 @@ body {
     overflow: visible;
 }
 .brief-section {
-    border-top: 1px solid #1e1e1e;
+    border-top: 1px solid #252525;
     padding-top: 6px;
 }
 .brief-section:first-child {
     border-top: none;
     padding-top: 0;
 }
+.brief-section.regime-read .brief-text { display: none; }
+.brief-section.regime-read.open .brief-text { display: block; }
+.brief-label.regime-toggle { cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+.regime-arrow { color: #444; font-size: 8px; transition: transform 0.15s; }
+.brief-section.regime-read.open .regime-arrow { transform: rotate(90deg); }
 .brief-label {
     color: #555;
     font-size: 9px;
@@ -345,13 +350,12 @@ body {
           </div>
         </div>
 
-        <div class="brief-section">
-          <div class="brief-label">REGIME READ</div>
+        <div class="brief-section regime-read">
+          <div class="brief-label regime-toggle">REGIME READ <span class="regime-arrow">▶</span></div>
           <div class="brief-text">Leveraged Money 94th and Asset Manager 79th both crowded long — dual category confirmation, strongest reversal risk signal this framework produces.</div>
         </div>
       </div>
 
-      </div>
       <div class="brief-right">
         <div class="chart-tab-bar">
           <button class="chart-tab active" data-pair="eurusd" data-tab="0">FUNDAMENTALS</button>
@@ -447,12 +451,11 @@ body {
           </div>
         </div>
 
-        <div class="brief-section">
-          <div class="brief-label">REGIME READ</div>
+        <div class="brief-section regime-read">
+          <div class="brief-label regime-toggle">REGIME READ <span class="regime-arrow">▶</span></div>
           <div class="brief-text">Spread compression favors lower USD/JPY. Leveraged Money 69th and Asset Manager 69th both neutral — carry partially intact, BoJ path is key variable.</div>
         </div>
 
-      </div>
       <div class="brief-right">
         <div class="chart-tab-bar">
           <button class="chart-tab active" data-pair="usdjpy" data-tab="0">FUNDAMENTALS</button>
@@ -531,12 +534,11 @@ body {
           </div>
         </div>
 
-        <div class="brief-section">
-          <div class="brief-label">REGIME READ</div>
+        <div class="brief-section regime-read">
+          <div class="brief-label regime-toggle">REGIME READ <span class="regime-arrow">▶</span></div>
           <div class="brief-text">US-IN spread at -3.26%. India yield premium intact at 3.26pp. Rate differential favors INR strength. FPI positioning data pending Playwright integration.</div>
         </div>
 
-      </div>
       <div class="brief-right">
         <div class="chart-tab-bar">
           <button class="chart-tab active" data-pair="usdinr" data-tab="0">FUNDAMENTALS</button>
@@ -613,6 +615,12 @@ document.querySelectorAll('[data-pair]').forEach(function(el) {
     _ps.push(el.dataset.pair);
 });
 _ps.forEach(_syncH);
+
+document.querySelectorAll('.regime-toggle').forEach(function(lbl) {
+  lbl.addEventListener('click', function() {
+    this.closest('.regime-read').classList.toggle('open');
+  });
+});
 </script>
 
 </body>
