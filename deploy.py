@@ -8,23 +8,23 @@ import subprocess
 from datetime import datetime
 
 TODAY = datetime.today().strftime('%Y-%m-%d')
-BRIEF_SOURCE = f"runs/{TODAY}/data/brief.html"
+TODAY_COMPACT = datetime.today().strftime('%Y%m%d')
+BRIEF_SOURCE = f"briefs/brief_{TODAY_COMPACT}.html"  # written by create_html_brief.py this run
 DEPLOY_TARGET = "index.html"
 
 def deploy():
     # check brief exists
     if not os.path.exists(BRIEF_SOURCE):
-        # fallback: find most recent brief
-        runs_dir = "runs"
+        # fallback: find most recent brief in briefs/ dir
         BRIEF_SOURCE_FINAL = None
-        if os.path.exists(runs_dir):
-            dates = sorted(os.listdir(runs_dir), reverse=True)
-            for d in dates:
-                candidate = f"runs/{d}/data/brief.html"
-                if os.path.exists(candidate):
-                    BRIEF_SOURCE_FINAL = candidate
-                    print(f"using most recent brief: {candidate}")
-                    break
+        if os.path.exists("briefs"):
+            candidates = sorted(
+                [f for f in os.listdir("briefs") if f.endswith(".html")],
+                reverse=True
+            )
+            if candidates:
+                BRIEF_SOURCE_FINAL = f"briefs/{candidates[0]}"
+                print(f"using most recent brief: {BRIEF_SOURCE_FINAL}")
         if not BRIEF_SOURCE_FINAL:
             print("ERROR: no brief found to deploy")
             return
