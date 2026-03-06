@@ -317,16 +317,50 @@ def generate_html_brief():
         '.chart-tab {\n    padding: 0 12px;\n    height: 24px;\n',
     )
 
-    # fix bare regime-read text (missing brief-text wrapper) — idempotent
-    html_content = _re.sub(
-        r'(<div class="brief-label">REGIME READ</div>)\s+(?!<)(.*?)(</div>\s*</div>)',
-        lambda m: (
-            m.group(1) + '\n          <div class="brief-text">' +
-            m.group(2).strip() + '</div>\n        </div>\n      </div>'
-        ) if '<div' not in m.group(2) else m.group(0),
-        html_content,
-        flags=_re.DOTALL,
+    # idempotent: strip spurious extra </div> between brief-left and brief-right
+    html_content = html_content.replace(
+        '      </div>\n\n      </div>\n      <div class="brief-right">',
+        '      </div>\n\n      <div class="brief-right">',
     )
+
+    # header compression + font hierarchy
+    html_content = html_content.replace(
+        '.header {\n    display: flex;\n    justify-content: space-between;\n    align-items: flex-end;\n    padding: 16px 20px;\n',
+        '.header {\n    display: flex;\n    justify-content: space-between;\n    align-items: flex-end;\n    padding: 8px 20px;\n',
+    )
+    html_content = html_content.replace(
+        '.header-left .title {\n    font-size: 20px;\n',
+        '.header-left .title {\n    font-size: 14px;\n',
+    )
+    html_content = html_content.replace(
+        '.ch-pair {\n    font-size: 13px;\n    font-weight: 600;\n    color: #ffffff;\n    letter-spacing: 1px;\n}',
+        '.ch-pair {\n    font-size: 11px;\n    font-weight: 600;\n    color: #888;\n    letter-spacing: 1.5px;\n}',
+    )
+    html_content = html_content.replace(
+        '.brief-section {\n    border-top: 1px solid #1e1e1e;\n',
+        '.brief-section {\n    border-top: 1px solid #252525;\n',
+    )
+
+    # collapsible REGIME READ — inject CSS after .brief-section:first-child (idempotent)
+    _regime_css = (
+        '.brief-section.regime-read .brief-text { display: none; }\n'
+        '.brief-section.regime-read.open .brief-text { display: block; }\n'
+        '.brief-label.regime-toggle { cursor: pointer; display: flex; align-items: center; justify-content: space-between; }\n'
+        '.regime-arrow { color: #444; font-size: 8px; transition: transform 0.15s; }\n'
+        '.brief-section.regime-read.open .regime-arrow { transform: rotate(90deg); }'
+    )
+    if '.regime-arrow' not in html_content:
+        html_content = html_content.replace(
+            '.brief-section:first-child {\n    border-top: none;\n    padding-top: 0;\n}',
+            '.brief-section:first-child {\n    border-top: none;\n    padding-top: 0;\n}\n' + _regime_css,
+        )
+
+    # REGIME READ — add regime-read class + toggle markup (idempotent guard on class already present)
+    if 'class="brief-section regime-read"' not in html_content:
+        html_content = html_content.replace(
+            '        <div class="brief-section">\n          <div class="brief-label">REGIME READ</div>',
+            '        <div class="brief-section regime-read">\n          <div class="brief-label regime-toggle">REGIME READ <span class="regime-arrow">▶</span></div>',
+        )
 
     # ------------------------------------------------------------------
     # 3. Pane visibility (display → visibility so hidden panes keep size)
@@ -398,6 +432,12 @@ document.querySelectorAll('[data-pair]').forEach(function(el) {
     _ps.push(el.dataset.pair);
 });
 _ps.forEach(_syncH);
+
+document.querySelectorAll('.regime-toggle').forEach(function(lbl) {
+  lbl.addEventListener('click', function() {
+    this.closest('.regime-read').classList.toggle('open');
+  });
+});
 '''
 
     all_scripts = list(_re.finditer(r'(<script>)(.*?)(</script>)', html_content, _re.DOTALL))

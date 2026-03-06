@@ -1,0 +1,61 @@
+name: Daily FX Brief
+
+on:
+  schedule:
+    # 23:00 UTC = ~18:30 IST = 30 min after NY close (22:30 UTC Mon-Fri)
+    - cron: '0 23 * * 1-5'
+  workflow_dispatch:   # allow manual trigger from GitHub UI
+
+permissions:
+  contents: write      # needed to push index.html back to repo
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Write .env from secrets
+        run: |
+          echo "FRED_API_KEY=${{ secrets.FRED_API_KEY }}" > .env
+
+      - name: Configure git identity
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Run pipeline (skip deploy — handled below)
+        run: |
+          # First attempt
+          python run.py --skip deploy && echo "RUN_OK=true" >> $GITHUB_ENV || true
+          if [ "$RUN_OK" != "true" ]; then
+            echo "First attempt failed, retrying in 60s…"
+            sleep 60
+            python run.py --skip deploy
+          fi
+
+      - name: Verify brief was generated
+        run: |
+          SLUG=$(date -u +%Y%m%d)
+          if [ ! -f "briefs/brief_${SLUG}.html" ]; then
+            echo "ERROR: briefs/brief_${SLUG}.html not found"
+            exit 1
+          fi
+          echo "brief_${SLUG}.html found OK"
+
+      - name: Deploy to GitHub Pages
+        run: python deploy.py
