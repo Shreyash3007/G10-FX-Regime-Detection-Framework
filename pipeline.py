@@ -355,7 +355,10 @@ def calculate_differentials(yields_df):
 def calculate_volatility(master):
     print("\n[VOL] calculating realized volatility...")
 
-    for pair in ["EURUSD", "USDJPY", "USDINR"]:
+    # Note: USDINR is not present at this stage — it is added later by
+    # inr_pipeline.py which computes USDINR_vol30/USDINR_vol_pct on the
+    # original (non-reindexed) price series before merging into master.
+    for pair in ["EURUSD", "USDJPY"]:
         if pair not in master.columns:
             continue
         log_ret = np.log(master[pair] / master[pair].shift(1))
@@ -364,7 +367,7 @@ def calculate_volatility(master):
         )
 
     window_3y = 252 * 3
-    for pair in ["EURUSD", "USDJPY", "USDINR"]:
+    for pair in ["EURUSD", "USDJPY"]:
         col = f"{pair}_vol30"
         if col not in master.columns:
             continue
@@ -374,7 +377,7 @@ def calculate_volatility(master):
             .rank(pct=True) * 100
         )
 
-    for pair in ["EURUSD", "USDJPY", "USDINR"]:
+    for pair in ["EURUSD", "USDJPY"]:
         col     = f"{pair}_vol30"
         pct_col = f"{pair}_vol_pct"
         if col not in master.columns:

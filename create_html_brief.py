@@ -217,8 +217,8 @@ def inject_live_card_data(html_content, _re):
             price_col='USDINR', price_dec=2,
             chg_1d='USDINR_chg_1D', chg_12m='USDINR_chg_12M',
             spreads=[
-                ('US-IN 10Y',    'US_IN_10Y_spread',    None, True),
-                ('US-IN Policy', 'US_IN_policy_spread', None, True),
+                ('US 2Y–IN 10Y', 'US_IN_10Y_spread',    None, True),
+                ('US-IN Policy',  'US_IN_policy_spread', None, True),
             ],
             cot_lev_net=None, cot_lev_pctoi=None, cot_lev_pct=None,
             cot_am_net=None,  cot_am_pctoi=None,  cot_am_pct=None,

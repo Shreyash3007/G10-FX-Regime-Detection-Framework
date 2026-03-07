@@ -117,7 +117,7 @@ fx_regime/
 ```
 FX prices:    EURUSD, USDJPY, DXY, USDINR
 Yields:       US_2Y, US_10Y, DE_2Y, DE_10Y, JP_2Y, JP_10Y
-              IN_10Y (FRED monthly, forward-filled), IN_repo_proxy
+              IN_10Y (FBIL daily; FRED monthly fallback), IN_repo_proxy
 Spreads:      US_DE_10Y_spread, US_DE_2Y_spread
               US_JP_10Y_spread, US_JP_2Y_spread
               US_IN_10Y_spread, US_IN_policy_spread
@@ -130,8 +130,8 @@ COT AM:       EUR_assetmgr_net, EUR_assetmgr_pct_oi, EUR_assetmgr_percentile
               EUR_assetmgr_long, EUR_assetmgr_short
               JPY_assetmgr_net, JPY_assetmgr_pct_oi, JPY_assetmgr_percentile
               JPY_assetmgr_long, JPY_assetmgr_short
-Vol:          EURUSD_vol30, USDJPY_vol30
-              EURUSD_vol_pct, USDJPY_vol_pct
+Vol:          EURUSD_vol30, USDJPY_vol30, USDINR_vol30
+              EURUSD_vol_pct, USDJPY_vol_pct, USDINR_vol_pct
 Correlation:  EURUSD_spread_corr_60d, USDJPY_spread_corr_60d
               EURUSD_corr_percentile, USDJPY_corr_percentile
 FX changes:   EURUSD_chg_1D, EURUSD_chg_1W, EURUSD_chg_1M, EURUSD_chg_12M

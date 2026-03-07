@@ -355,6 +355,22 @@ def build_and_save(price_df, yield_df, fpi_df, fpi_status):
         inr["FPI_20D_flow"]       = fpi_df["FPI_20D_flow"].reindex(inr.index, method="ffill")
         inr["FPI_20D_percentile"] = fpi_df["FPI_20D_percentile"].reindex(inr.index, method="ffill")
 
+    # Compute USDINR vol on the original price series BEFORE reindexing to the
+    # US trading calendar.  Reindexing introduces ffill gaps (Indian holidays
+    # mapped to US dates) which produce zero log-returns and understate vol.
+    if "USDINR" in inr.columns:
+        _lr = np.log(inr["USDINR"] / inr["USDINR"].shift(1))
+        inr["USDINR_vol30"] = _lr.rolling(window=30).std() * np.sqrt(252) * 100
+        inr["USDINR_vol_pct"] = (
+            inr["USDINR_vol30"]
+            .rolling(window=252 * 3, min_periods=126)
+            .rank(pct=True) * 100
+        )
+        _v = inr["USDINR_vol30"].dropna().iloc[-1]
+        _p = inr["USDINR_vol_pct"].dropna().iloc[-1]
+        _flag = "EXTREME" if _p >= 90 else ("ELEVATED" if _p >= 75 else "NORMAL")
+        print(f"    USDINR vol: {_v:.1f}% annualized | {_p:.0f}th pct | {_flag}")
+
     inr.index.name = "date"
     inr.to_csv("data/inr_latest.csv")
     print(f"    saved: data/inr_latest.csv  ({len(inr)} rows x {len(inr.columns)} cols)")
@@ -375,21 +391,8 @@ def build_and_save(price_df, yield_df, fpi_df, fpi_status):
                     master["USDINR"] / master["USDINR"].shift(days) - 1
                 ) * 100
 
-        # USDINR realized volatility (30D annualized) + 3Y percentile rank
-        if "USDINR" in master.columns:
-            import numpy as _np
-            log_ret = _np.log(master["USDINR"] / master["USDINR"].shift(1))
-            master["USDINR_vol30"] = log_ret.rolling(window=30).std() * _np.sqrt(252) * 100
-            window_3y = 252 * 3
-            master["USDINR_vol_pct"] = (
-                master["USDINR_vol30"]
-                .rolling(window=window_3y, min_periods=126)
-                .rank(pct=True) * 100
-            )
-            v = master["USDINR_vol30"].dropna().iloc[-1]
-            p = master["USDINR_vol_pct"].dropna().iloc[-1]
-            flag = "EXTREME" if p >= 90 else ("ELEVATED" if p >= 75 else "NORMAL")
-            print(f"    USDINR vol: {v:.1f}% annualized | {p:.0f}th pct | {flag}")
+        # USDINR_vol30 / USDINR_vol_pct are computed on the original INR
+        # price series above (before reindexing) and carried through inr_aligned.
 
         # oil correlation for INR (Phase 1)
         # Brent is fetched by pipeline.py and lives in master at this point
