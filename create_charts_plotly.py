@@ -5,199 +5,6 @@ from charts.base import _base_layout, _style_axes, _load_and_filter, _add_annota
 
 
 # ============================================================================
-# REFERENCE PROTOTYPE (KEEP INTACT)
-# ============================================================================
-
-def build_eurusd_fundamentals_prototype():
-    d = pd.read_csv('data/latest_with_cot.csv', index_col=0, parse_dates=True)
-
-    cutoff = pd.Timestamp.today() - pd.DateOffset(months=12)
-    d = d[d.index >= cutoff]
-    d = d[d['EURUSD'].notna()]
-
-    # The correlation column in the CSV is EURUSD_spread_corr_60d
-    corr_col = 'EURUSD_spread_corr_60d'
-
-    fig = make_subplots(
-        rows=3, cols=1,
-        shared_xaxes=True,
-        row_heights=[0.45, 0.35, 0.20],
-        vertical_spacing=0.06,
-    )
-
-    # --- Subplot 1: EUR/USD price ---
-    fig.add_trace(
-        go.Scatter(
-            x=d.index,
-            y=d['EURUSD'],
-            mode='lines',
-            line=dict(color='#4da6ff', width=1.5),
-            name='EUR/USD',
-            showlegend=False,
-            hovertemplate='%{x|%d %b %Y}<br>%{y:.4f}<extra></extra>',
-        ),
-        row=1, col=1,
-    )
-
-    # --- Subplot 2: Dual spreads ---
-    fig.add_trace(
-        go.Scatter(
-            x=d.index,
-            y=d['US_DE_10Y_spread'],
-            mode='lines',
-            line=dict(color='#2980b9'),
-            name='US 2Y - DE 10Y',
-            showlegend=False,
-            hovertemplate='%{x|%d %b %Y}<br>%{y:.2f}%<extra></extra>',
-        ),
-        row=2, col=1,
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=d.index,
-            y=d['US_DE_2Y_spread'],
-            mode='lines',
-            line=dict(color='#e67e22'),
-            name='US 2Y - DE 2Y',
-            showlegend=False,
-            hovertemplate='%{x|%d %b %Y}<br>%{y:.2f}%<extra></extra>',
-        ),
-        row=2, col=1,
-    )
-    fig.add_hline(y=0, line_dash='dash', line_color='#444444', line_width=1, row=2, col=1)
-
-    # --- Subplot 3: Regime correlation ---
-    fig.add_trace(
-        go.Scatter(
-            x=d.index,
-            y=d[corr_col],
-            mode='lines',
-            line=dict(color='#aaaaaa', width=1.5),
-            name='60D Corr',
-            showlegend=False,
-            hovertemplate='%{x|%d %b %Y}<br>%{y:.2f}<extra></extra>',
-        ),
-        row=3, col=1,
-    )
-    # INTACT threshold
-    fig.add_hline(y=0.6, line_color='#00d4aa', line_dash='dash', line_width=1, row=3, col=1)
-    # BROKEN threshold
-    fig.add_hline(y=0.3, line_color='#ff4444', line_dash='dash', line_width=1, row=3, col=1)
-    # Broken zone (below 0.3)
-    fig.add_hrect(y0=-1, y1=0.3, fillcolor='rgba(255,68,68,0.05)', line_width=0, row=3, col=1)
-    # Intact zone (above 0.6)
-    fig.add_hrect(y0=0.6, y1=1, fillcolor='rgba(0,212,170,0.05)', line_width=0, row=3, col=1)
-
-    # --- Theme ---
-    fig.update_layout(
-        template='plotly_dark',
-        paper_bgcolor='#0d0d0d',
-        plot_bgcolor='#141414',
-        font=dict(family='Inter, system-ui, sans-serif', color='#cccccc', size=11),
-        height=520,
-        margin=dict(l=50, r=30, t=30, b=30),
-        showlegend=False,
-        hovermode='x unified',
-        hoverlabel=dict(bgcolor='#1a1a1a', bordercolor='#333333',
-                        font=dict(color='#cccccc', size=11)),
-        xaxis_showgrid=True, xaxis_gridcolor='#1e1e1e', xaxis_gridwidth=1,
-        yaxis_showgrid=True, yaxis_gridcolor='#1e1e1e', yaxis_gridwidth=1,
-        dragmode='pan',
-    )
-
-    fig.update_xaxes(
-        showgrid=True, gridcolor='#1e1e1e', gridwidth=1,
-        showline=False, zeroline=False,
-        tickfont=dict(size=10, color='#666666'),
-        range=[cutoff.strftime('%Y-%m-%d'), pd.Timestamp.today().strftime('%Y-%m-%d')],
-    )
-    fig.update_yaxes(
-        showgrid=True, gridcolor='#1e1e1e', gridwidth=1,
-        showline=False, zeroline=False,
-        tickfont=dict(size=10, color='#666666'),
-    )
-
-    # Fix correlation panel y-axis range
-    fig.update_yaxes(range=[-1, 1], row=3, col=1)
-
-    # --- Inline end-of-line labels ---
-    last_x = d.index[-1]
-    inline_annotations = [
-        # Subplot 1: EUR/USD price value
-        dict(
-            x=last_x,
-            y=d['EURUSD'].iloc[-1],
-            text=f"  {d['EURUSD'].iloc[-1]:.4f}",
-            xref='x', yref='y',
-            xanchor='left', showarrow=False,
-            font=dict(size=10, color='#4da6ff'),
-        ),
-        # Subplot 2: DE 10Y spread label
-        dict(
-            x=last_x,
-            y=d['US_DE_10Y_spread'].iloc[-1],
-            text='  DE 10Y',
-            xref='x2', yref='y2',
-            xanchor='left', showarrow=False,
-            font=dict(size=9, color='#2980b9'),
-        ),
-        # Subplot 2: DE 2Y spread label
-        dict(
-            x=last_x,
-            y=d['US_DE_2Y_spread'].iloc[-1],
-            text='  DE 2Y',
-            xref='x2', yref='y2',
-            xanchor='left', showarrow=False,
-            font=dict(size=9, color='#e67e22'),
-        ),
-        # Subplot 3: correlation value
-        dict(
-            x=last_x,
-            y=d[corr_col].iloc[-1],
-            text=f"  {d[corr_col].iloc[-1]:.3f}",
-            xref='x3', yref='y3',
-            xanchor='left', showarrow=False,
-            font=dict(size=9, color='#cccccc'),
-        ),
-    ]
-
-    # --- Subplot title annotations ---
-    # Row domains (bottom to top): row3=[0,0.20], row2=[0.26,0.61], row1=[0.67,1.0]
-    subplot_titles = [
-        dict(
-            text='EUR/USD PRICE',
-            x=0.01, y=1.0,
-            xref='paper', yref='paper',
-            xanchor='left', yanchor='top',
-            font=dict(size=9, color='#555555'),
-            showarrow=False,
-        ),
-        dict(
-            text='RATE DIFFERENTIALS (pp) \u2014 narrowing = EUR/USD should rise',
-            x=0.01, y=0.61,
-            xref='paper', yref='paper',
-            xanchor='left', yanchor='top',
-            font=dict(size=9, color='#555555'),
-            showarrow=False,
-        ),
-        dict(
-            text='REGIME CORRELATION (60D)',
-            x=0.01, y=0.20,
-            xref='paper', yref='paper',
-            xanchor='left', yanchor='top',
-            font=dict(size=9, color='#555555'),
-            showarrow=False,
-        ),
-    ]
-
-    fig.update_layout(
-        annotations=(fig.layout.annotations or ()) + tuple(inline_annotations) + tuple(subplot_titles)
-    )
-
-    return fig
-
-
-# ============================================================================
 # FUNCTION 1: build_fundamentals_chart(pair)
 # ============================================================================
 
@@ -416,15 +223,15 @@ def build_positioning_chart(pair):
     # Configuration
     configs = {
         'eurusd': dict(
-            net_col='EUR_net_pos',
-            pct_col='EUR_percentile',
+            net_col='EUR_lev_net',
+            pct_col='EUR_lev_percentile',
             am_net_col='EUR_assetmgr_net',
             am_pct_col='EUR_assetmgr_percentile',
             color_pair='#4da6ff'
         ),
         'usdjpy': dict(
-            net_col='JPY_net_pos',
-            pct_col='JPY_percentile',
+            net_col='JPY_lev_net',
+            pct_col='JPY_lev_percentile',
             am_net_col='JPY_assetmgr_net',
             am_pct_col='JPY_assetmgr_percentile',
             color_pair='#ff9944'

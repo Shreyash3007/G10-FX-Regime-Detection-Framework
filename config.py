@@ -9,6 +9,13 @@ TODAY_FMT  = datetime.today().strftime('%A, %d %B %Y')
 DATE_SLUG  = TODAY.replace('-', '')
 START_DATE = "2020-01-01"   # 5 years of history is enough for regime work
 
+# ── CROWDING / VOLATILITY THRESHOLDS ────────────────────────────────────────
+CROWDING_HIGH  = 80   # percentile above which positioning is "crowded"
+CROWDING_LOW   = 20   # percentile below which positioning is "crowded short"
+EXTENDED_HIGH  = 70   # percentile for "extended" (amber) warning
+VOL_EXTREME    = 90   # vol percentile: extreme regime
+VOL_ELEVATED   = 75   # vol percentile: elevated (amber)
+
 # ── FX TICKERS (Yahoo Finance format) ───────────────────────
 FX_TICKERS = {
     "EURUSD": "EURUSD=X",   # Euro vs US Dollar

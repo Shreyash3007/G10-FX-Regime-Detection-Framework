@@ -17,6 +17,7 @@ import yfinance as yf
 from fredapi import Fred
 from dotenv import load_dotenv
 from io import StringIO
+from concurrent.futures import ThreadPoolExecutor
 
 from config import TODAY, START_DATE
 

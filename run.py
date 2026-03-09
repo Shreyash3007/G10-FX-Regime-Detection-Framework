@@ -20,6 +20,25 @@ import argparse
 import time
 from datetime import datetime
 
+
+class _Tee:
+    """Write output to both a stream and a log file simultaneously."""
+    def __init__(self, stream, logfile):
+        self._stream  = stream
+        self._logfile = logfile
+
+    def write(self, data):
+        self._stream.write(data)
+        self._logfile.write(data)
+
+    def flush(self):
+        self._stream.flush()
+        self._logfile.flush()
+
+    def isatty(self):
+        return False
+
+
 # ── pipeline step definitions ─────────────────────────────────────────────────
 # Each entry: (name, script_file)
 # Order matters — each step may depend on the output of the previous one.
@@ -100,6 +119,13 @@ def main():
     python_exe = sys.executable
     today_str  = datetime.today().strftime('%Y-%m-%d')
 
+    # ── per-run log file ────────────────────────────────────────────────────────
+    log_path = os.path.join('runs', today_str, 'pipeline.log')
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    _log_file = open(log_path, 'w', encoding='utf-8', buffering=1)
+    sys.stdout = _Tee(sys.__stdout__, _log_file)
+    sys.stderr = _Tee(sys.__stderr__, _log_file)
+
     # Deduplicate: pipeline.py appears as both "fx" and "merge"
     # — if both are in the run set, only run pipeline.py once.
     seen_scripts = set()
@@ -145,6 +171,11 @@ def main():
         print(f'{"="*50}\n')
     else:
         print(f'\n  pipeline stopped after {total:.1f}s -- fix the error above and retry.\n')
+
+    sys.stdout = sys.__stdout__
+    sys.stderr = sys.__stderr__
+    _log_file.close()
+    if failed:
         sys.exit(1)
 
 

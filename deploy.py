@@ -3,6 +3,7 @@
 # GitHub Pages serves index.html from root automatically
 
 import os
+import re
 import shutil
 import subprocess
 from datetime import datetime
@@ -35,7 +36,7 @@ def deploy():
     # briefs use ../charts/ (brief is in briefs/ subdir) but index.html is at root
     with open(BRIEF_SOURCE_FINAL, 'r', encoding='utf-8') as f:
         html = f.read()
-    html = html.replace('src="../charts/', 'src="charts/')
+    html = re.sub(r'(<iframe\b[^>]*\bsrc=")\.\.\/charts\/', r'\1charts/', html)
     if '<html' not in html or '</html>' not in html:
         print("ERROR: brief HTML appears corrupted (missing <html> tags) — aborting deploy")
         return

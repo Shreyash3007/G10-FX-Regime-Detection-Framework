@@ -65,14 +65,15 @@ def _value_color_for(label):
         return '#f0a500'
     return '#555555'   # LOW, NO DATA
 
-def inject_live_card_data(html_content, _re):
+def inject_live_card_data(html_content, _re, df=None):
     """
     Regenerate every pair card's header (price, changes, badge) and entire
     brief-left panel (spreads, COT, vol, regime read) with live values from
     data/latest_with_cot.csv so the detail page always matches the landing page.
     """
     try:
-        df  = pd.read_csv('data/latest_with_cot.csv', index_col=0, parse_dates=True)
+        if df is None:
+            df = pd.read_csv('data/latest_with_cot.csv', index_col=0, parse_dates=True)
         row = df.iloc[-1]
     except Exception:
         return html_content
@@ -358,10 +359,11 @@ def inject_live_card_data(html_content, _re):
     return html_content
 
 
-def inject_cross_asset_values(html_content, _re):
+def inject_cross_asset_values(html_content, _re, df=None):
     """Replace data-field / data-badge spans with live corr values from CSV."""
     try:
-        df  = pd.read_csv('data/latest_with_cot.csv', index_col=0, parse_dates=True)
+        if df is None:
+            df = pd.read_csv('data/latest_with_cot.csv', index_col=0, parse_dates=True)
         row = df.iloc[-1]
     except Exception:
         return html_content
@@ -401,10 +403,11 @@ def inject_cross_asset_values(html_content, _re):
     return html_content
 
 
-def update_globalbar(html_content, _re):
+def update_globalbar(html_content, _re, df=None):
     """Replace static globalbar prices with live values + color-coded 1D change spans."""
     try:
-        df  = pd.read_csv('data/latest_with_cot.csv', index_col=0, parse_dates=True)
+        if df is None:
+            df = pd.read_csv('data/latest_with_cot.csv', index_col=0, parse_dates=True)
         row = df.iloc[-1]
     except Exception:
         return html_content
@@ -468,7 +471,7 @@ def _regime_corr_info(corr_val):
     return f'{corr_val:+.3f}', '#f0a500', 'badge-warning', 'INVERTED'
 
 
-def inject_landing_page(html_content, _re):
+def inject_landing_page(html_content, _re, df=None):
     """Inject a full-screen landing/overview page before the first pair card.
     Always rebuilds with fresh data so prices/signals stay current.
     """
@@ -481,7 +484,8 @@ def inject_landing_page(html_content, _re):
     )
 
     try:
-        df  = pd.read_csv('data/latest_with_cot.csv', index_col=0, parse_dates=True)
+        if df is None:
+            df = pd.read_csv('data/latest_with_cot.csv', index_col=0, parse_dates=True)
         row = df.iloc[-1]
         last_date = df.index[-1]
         date_str  = last_date.strftime('%d %b %Y')
@@ -1057,20 +1061,26 @@ def generate_html_brief():
             html_content,
         )
 
+    # Load data CSV once — shared across all injection functions
+    try:
+        _shared_df = pd.read_csv('data/latest_with_cot.csv', index_col=0, parse_dates=True)
+    except Exception:
+        _shared_df = None
+
     # ------------------------------------------------------------------
     # 1b. Inject live cross-asset correlation values (Phase 1 & 2)
     # ------------------------------------------------------------------
-    html_content = inject_cross_asset_values(html_content, _re)
+    html_content = inject_cross_asset_values(html_content, _re, df=_shared_df)
 
     # ------------------------------------------------------------------
     # 1c. Update globalbar with live prices + colored 1D changes
     # ------------------------------------------------------------------
-    html_content = update_globalbar(html_content, _re)
+    html_content = update_globalbar(html_content, _re, df=_shared_df)
 
     # ------------------------------------------------------------------
     # 1d-pre. Inject live data into all pair card headers + brief-left panels
     # ------------------------------------------------------------------
-    html_content = inject_live_card_data(html_content, _re)
+    html_content = inject_live_card_data(html_content, _re, df=_shared_df)
 
     # ------------------------------------------------------------------
     # 1d. Inject landing page CSS (before landing HTML so CSS is in <head>)
@@ -1116,7 +1126,7 @@ def generate_html_brief():
     # ------------------------------------------------------------------
     # 1g. Inject full-screen landing overview page (Page 0)
     # ------------------------------------------------------------------
-    html_content = inject_landing_page(html_content, _re)
+    html_content = inject_landing_page(html_content, _re, df=_shared_df)
 
     # ------------------------------------------------------------------
     # 2. CSS patches (idempotent — cascade through version history)

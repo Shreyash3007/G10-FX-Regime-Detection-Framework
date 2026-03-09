@@ -35,3 +35,12 @@ CHART_REGISTRY = {
     ("usdinr", 1): (build_vol_correlation_chart, "usdinr", 360),
     ("usdinr", 2): (build_cross_asset_chart,     "usdinr", 460),
 }
+
+
+def _validate_registry():
+    for (pair, idx), (builder, pair_str, height) in CHART_REGISTRY.items():
+        assert pair == pair_str, \
+            f"Registry mismatch: key pair '{pair}' != entry pair_str '{pair_str}'"
+
+
+_validate_registry()

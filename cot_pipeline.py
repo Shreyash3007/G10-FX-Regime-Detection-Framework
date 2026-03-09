@@ -263,13 +263,6 @@ def save_cot(positioning_dict):
             "Asset_Mgr_Positions_Short_All":          f"{ticker}_assetmgr_short",
         })
 
-        # BACKWARD COMPATIBILITY: Add old column names (duplicate data)
-        # create_dashboards.py depends on EUR_net_pos, EUR_percentile  
-        # This allows old code to keep working without changes
-        renamed[f"{ticker}_net_pos"] = renamed[f"{ticker}_lev_net"]
-        renamed[f"{ticker}_net_pct_oi"] = renamed[f"{ticker}_lev_pct_oi"]
-        renamed[f"{ticker}_percentile"] = renamed[f"{ticker}_lev_percentile"]
-
         frames.append(renamed)
 
     cot_df = pd.concat(frames, axis=1)

@@ -5,6 +5,7 @@
 import pandas as pd
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
+from functools import lru_cache
 from core.paths import LATEST_WITH_COT_CSV
 
 
@@ -39,6 +40,7 @@ def _style_axes(fig):
     return fig
 
 
+@lru_cache(maxsize=4)
 def _load_and_filter(pair=None, months=12):
     """Load latest_with_cot.csv and return (filtered_df, cutoff_date, today_date).
 

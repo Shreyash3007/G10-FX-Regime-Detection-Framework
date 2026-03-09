@@ -139,8 +139,8 @@ def _fbil_history(start_date: str = START_DATE) -> pd.DataFrame:
         except Exception:
             return None
 
-    # Use 20 concurrent workers — fast enough without hammering the server
-    with ThreadPoolExecutor(max_workers=20) as pool:
+    # Use 5 concurrent workers — avoid hammering the server
+    with ThreadPoolExecutor(max_workers=5) as pool:
         futures = {pool.submit(_fetch_one, d): d for d in new_days}
         for fut in as_completed(futures):
             try:
@@ -419,15 +419,15 @@ def build_and_save(price_df, yield_df, fpi_df, fpi_status):
                     target = pos - 252
                     if target < 0:
                         continue
-                    # search ±10 rows around the 252-row mark for nearest non-NaN
+                    # search ±10 integer positions around target for nearest non-NaN
                     lo = max(0, target - 10)
                     hi = min(len(s) - 1, target + 10)
-                    window = s.iloc[lo:hi + 1].dropna()
-                    if len(window) == 0:
+                    # use integer positions directly — O(1) per lookup, no get_loc needed
+                    win_valid_positions = [p for p in range(lo, hi + 1) if not pd.isna(s.iloc[p])]
+                    if not win_valid_positions:
                         continue
-                    # pick the row closest to target position
-                    best_idx = min(window.index, key=lambda d: abs(s.index.get_loc(d) - target))
-                    chg.iloc[pos] = curr - s[best_idx]
+                    best_int_pos = min(win_valid_positions, key=lambda p: abs(p - target))
+                    chg.iloc[pos] = curr - s.iloc[best_int_pos]
                 master[chg_col] = chg
 
         master.to_csv(master_path)

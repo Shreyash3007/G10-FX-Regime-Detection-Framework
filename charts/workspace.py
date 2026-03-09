@@ -55,7 +55,7 @@ DEFAULTS = {
 }
 
 
-def _load_series(months=14):
+def _load_series(months=3):
     """Load last `months` months of data from the master CSV."""
     try:
         df = pd.read_csv(LATEST_WITH_COT_CSV, index_col=0, parse_dates=True)
@@ -265,12 +265,18 @@ function getChecked() {{
     .map(cb => cb.dataset.key);
 }}
 
+function _findLastLE(arr, val) {{
+  for (var i = arr.length - 1; i >= 0; i--) {{
+    if (arr[i] <= val) return i;
+  }}
+  return -1;
+}}
 function filterByDate(keys) {{
   const from = document.getElementById('dt-from').value;
   const to   = document.getElementById('dt-to').value;
   const dates = DATA.dates;
   const i0 = from ? dates.findIndex(d => d >= from) : 0;
-  const i1 = to   ? dates.findLastIndex(d => d <= to) + 1 : dates.length;
+  const i1 = to   ? _findLastLE(dates, to) + 1 : dates.length;
   const slicedDates = dates.slice(i0, i1);
   const slicedSeries = {{}};
   keys.forEach(k => {{
