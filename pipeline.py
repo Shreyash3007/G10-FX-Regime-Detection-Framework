@@ -270,12 +270,16 @@ def _fetch_mof_yields():
 
 
 def fetch_all_yields():
-    print("\n[2/5] fetching all yields (FRED + ECB + MOF)...")
+    print("\n[2/5] fetching all yields (FRED + ECB + MOF — parallel)...")
 
-    all_frames = {}
-    all_frames.update(_fetch_us_yields())
-    all_frames.update(_fetch_ecb_yields())
-    all_frames.update(_fetch_mof_yields())
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        fut_us  = pool.submit(_fetch_us_yields)
+        fut_ecb = pool.submit(_fetch_ecb_yields)
+        fut_mof = pool.submit(_fetch_mof_yields)
+        all_frames = {}
+        all_frames.update(fut_us.result())
+        all_frames.update(fut_ecb.result())
+        all_frames.update(fut_mof.result())
 
     yields_df = pd.DataFrame(all_frames)
     yields_df.index = pd.to_datetime(yields_df.index)
