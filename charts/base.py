@@ -12,15 +12,15 @@ from core.paths import LATEST_WITH_COT_CSV
 def _base_layout(height=None):
     layout = dict(
         template='plotly_dark',
-        paper_bgcolor='#0d0d0d',
-        plot_bgcolor='#141414',
+        paper_bgcolor='#0a0e1a',
+        plot_bgcolor='#0d1225',
         font=dict(family='Inter, system-ui, sans-serif',
                   color='#cccccc', size=11),
         margin=dict(l=50, r=60, t=30, b=30),
         legend=dict(bgcolor='rgba(0,0,0,0)', borderwidth=0,
                     font=dict(size=10, color='#888888')),
         hovermode='x unified',
-        hoverlabel=dict(bgcolor='#1a1a1a', bordercolor='#333333',
+        hoverlabel=dict(bgcolor='#111827', bordercolor='#333333',
                         font=dict(color='#cccccc', size=11)),
         dragmode='pan',
         autosize=True,

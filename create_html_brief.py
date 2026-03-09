@@ -719,14 +719,16 @@ def inject_landing_page(html_content, _re, df=None):
                           inr_sp10_str, inr_sp10_dir, inr_sp10_col, inr_rows,
                           spread_label='US 2Y\u2013IN 10Y (cross)')
 
-    logo_src = embed_image(os.path.join('logos', 'logo without bg.png'))
-    logo_img = f'<img src="{logo_src}" class="lp-logo-mark" alt="FX Regime Lab">' if logo_src else ''
+    logo_src     = embed_image(os.path.join('logos', 'logo without bg.png'))
+    wordmark_src = embed_image(os.path.join('logos', 'wordmark without bg.png'))
+    logo_img     = f'<img src="{logo_src}" class="lp-logo-mark" alt="">' if logo_src else ''
+    wordmark_img = f'<img src="{wordmark_src}" class="lp-wordmark" alt="FX Regime Lab">' if wordmark_src else ''
     from config import TODAY_FMT
     landing_html = f'''<!-- LANDING PAGE -->
 <div id="landing">
   <div class="lp-header">
     <div class="lp-title-block">
-      <div class="lp-logo-row">{logo_img}<span class="lp-brand-name">FX REGIME LAB</span></div>
+      <div class="lp-logo-row">{logo_img}{wordmark_img}</div>
       <div class="lp-framework-label">G10 FX Regime Detection Framework</div>
       <div class="lp-morning-brief">Morning Brief</div>
       <div class="lp-date">{TODAY_FMT}</div>
@@ -958,10 +960,10 @@ def inject_brand_css(html_content):
     - Nav active state per pair brand color
     - Cross-asset ticker visual separation (Brent, Gold)
     """
-    if '/* brand-v1 */' in html_content:
+    if '/* brand-v2 */' in html_content:
         return html_content
     import re as _rb
-    brand_css = '''/* brand-v1 */
+    brand_css = '''/* brand-v2 */
 /* ---- brand identity overrides ---- */
 
 /* 1. Deep navy background throughout */
@@ -1070,7 +1072,26 @@ body { background: #0a0e1a !important; }
 .lp-ticker-item--cross .lp-ticker-label {
     color: #3d4560 !important;
 }
-/* end brand-v1 */'''
+
+/* 10. Full background unification — navy palette */
+.globalbar { background: #111827 !important; }
+.card { background: #0d1225 !important; border-color: #1e2d45 !important; }
+.card-header { background: #111827 !important; border-color: #1e2d45 !important; }
+.card-body { background: #0d1225 !important; }
+.brief-left { background: #0d1225 !important; border-color: #1e2d45 !important; }
+.chart-tab-bar { background: #111827 !important; border-color: #1e2d45 !important; }
+.chart-tab.active { background: #162647 !important; }
+.lp-ticker-bar { background: #0d1225 !important; border-color: #1e2d45 !important; }
+.lp-card-header { background: #111827 !important; }
+.lp-drilldown:hover { background: #0f1a34 !important; }
+.ws-header { background: #111827 !important; border-color: #1e2d45 !important; }
+.footer { background: #0a0e1a !important; }
+#pair-nav { background: rgba(10,14,26,0.95) !important; }
+.badge-neutral-card { background: #1d2235 !important; color: #888 !important; }
+
+/* 11. Wordmark image sizing */
+.lp-wordmark { height: 28px; width: auto; display: block; flex-shrink: 0; }
+/* end brand-v2 */'''
     html_content = _rb.sub(
         r'</style>\s*</head>',
         brand_css + '\n</style>\n</head>',
@@ -1108,7 +1129,7 @@ def fig_to_iframe(fig, pair, pane, height=480):
     if '<head>' in _ch and 'html,body{height:100%' not in _ch:
         _ch = _ch.replace(
             '<head>',
-            '<head><style>html,body{height:100%;margin:0;padding:0;overflow:hidden;background:#0d0d0d}</style>',
+            '<head><style>html,body{height:100%;margin:0;padding:0;overflow:hidden;background:#0a0e1a}</style>',
             1,
         )
     with open(chart_file, 'w', encoding='utf-8') as _cf:
@@ -1138,7 +1159,7 @@ def _builder_to_iframe(builder, pair_str, pane_idx, height):
             if '<head>' in _raw and 'html,body{height:100%' not in _raw:
                 _raw = _raw.replace(
                     '<head>',
-                    '<head><style>html,body{height:100%;margin:0;padding:0;overflow:hidden;background:#0d0d0d}</style>',
+                    '<head><style>html,body{height:100%;margin:0;padding:0;overflow:hidden;background:#0a0e1a}</style>',
                     1,
                 )
         with open(chart_file, 'w', encoding='utf-8') as _fh:
@@ -1204,6 +1225,16 @@ def generate_html_brief():
         f'<title>G10 FX Morning Brief \u2014 {TODAY_FMT}</title>',
         html_content,
     )
+
+    # Inject favicon (idempotent — embeds logo as browser tab icon)
+    if 'rel="icon"' not in html_content:
+        _fav_src = embed_image(os.path.join('logos', 'logo without bg.png'))
+        if _fav_src:
+            html_content = html_content.replace(
+                '</title>',
+                f'</title>\n<link rel="icon" type="image/png" href="{_fav_src}">',
+                1,
+            )
 
     # ------------------------------------------------------------------
     # 1. Inject chart iframes into chart-pane divs

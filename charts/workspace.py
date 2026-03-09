@@ -173,7 +173,7 @@ def build_workspace_html(pair=None):
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" crossorigin="anonymous"></script>
 <style>
 *{{box-sizing:border-box;margin:0;padding:0}}
-body{{background:#0d0d0d;color:#cccccc;font-family:'Inter',system-ui,sans-serif;font-size:12px;height:100vh;display:flex;flex-direction:column;overflow:hidden}}
+body{{background:#0a0e1a;color:#cccccc;font-family:'Inter',system-ui,sans-serif;font-size:12px;height:100vh;display:flex;flex-direction:column;overflow:hidden}}
 #ctrl{{height:40px;background:#1a1a1a;border-bottom:1px solid #2a2a2a;display:flex;align-items:center;gap:10px;padding:0 14px;flex-shrink:0}}
 #ctrl-title{{color:#444;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap}}
 .ctrl-sep{{width:1px;height:18px;background:#2a2a2a;margin:0 2px}}
@@ -198,7 +198,7 @@ body{{background:#0d0d0d;color:#cccccc;font-family:'Inter',system-ui,sans-serif;
 .corr-sel{{width:100%;background:#1a1a1a;border:1px solid #252525;color:#aaa;padding:3px 5px;font-size:10px;margin-bottom:5px;border-radius:2px}}
 #corr-val{{text-align:center;font-size:18px;font-weight:600;color:#ffffff;padding:5px 0 1px;font-variant-numeric:tabular-nums;letter-spacing:-0.5px}}
 #corr-label{{text-align:center;font-size:9px;color:#444;margin-bottom:2px}}
-#chart-area{{flex:1;overflow:hidden;position:relative;background:#0d0d0d}}
+#chart-area{{flex:1;overflow:hidden;position:relative;background:#0a0e1a}}
 #chart{{width:100%;height:100%}}
 #main.sidebar-hidden #sidebar{{display:none}}
 </style></head>
@@ -234,7 +234,7 @@ body{{background:#0d0d0d;color:#cccccc;font-family:'Inter',system-ui,sans-serif;
 const DATA = {data_json};
 
 const LAYOUT_BASE = {{
-  paper_bgcolor:'#0d0d0d', plot_bgcolor:'#141414',
+  paper_bgcolor:'#0a0e1a', plot_bgcolor:'#0d1225',
   font:{{family:"'Inter',system-ui,sans-serif",size:11,color:'#cccccc'}},
   margin:{{l:52,r:52,t:18,b:36}},
   hovermode:'x unified',

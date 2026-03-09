@@ -452,7 +452,11 @@ def calculate_regime_correlation(master):
     ]:
         if col60 not in master.columns:
             continue
-        c60 = master[col60].dropna().iloc[-1]
+        _s60 = master[col60].dropna()
+        if len(_s60) == 0:
+            print(f"    {pair}: no correlation data (yield series unavailable)")
+            continue
+        c60 = _s60.iloc[-1]
         label_20 = ''
         if col20 in master.columns and len(master[col20].dropna()) > 0:
             c20 = master[col20].dropna().iloc[-1]
