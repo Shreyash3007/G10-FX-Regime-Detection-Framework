@@ -852,10 +852,10 @@ def inject_landing_css(html_content):
 }
 .lp-header {
     display: flex; justify-content: space-between; align-items: flex-start;
-    margin-bottom: 16px; flex-shrink: 0;
+    margin-bottom: 20px; flex-shrink: 0;
 }
 .lp-framework-label {
-    font-size: 9px; letter-spacing: 0.2em; color: #888;
+    font-size: 10px; letter-spacing: 0.18em; color: #888;
     text-transform: uppercase; margin-bottom: 4px;
 }
 .lp-date { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 4px; }
@@ -1088,7 +1088,10 @@ body { background: #0a0e1a !important; }
 .badge-neutral-card { background: #1d2235 !important; color: #888 !important; }
 
 /* 11. Wordmark image sizing */
-.lp-wordmark { height: 56px; width: auto; display: block; margin-bottom: 10px; }
+.lp-wordmark { height: 90px; width: auto; display: block; margin-bottom: 16px; }
+
+/* 12. Masthead hierarchy scale-up */
+.lp-morning-brief { font-size: 28px !important; }
 /* end brand-v2 */'''
     html_content = _rb.sub(
         r'</style>\s*</head>',
