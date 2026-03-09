@@ -84,8 +84,7 @@ check('rel="icon" present in <head>', 'rel="icon"' in html)
 check("favicon is a data: PNG URI", 'type="image/png" href="data:image/png;base64,' in html)
 
 # ── E. Logo + wordmark ───────────────────────────────────────────────────────
-print("\n=== E. Logo + wordmark ===")
-check("lp-logo-mark img tag present", 'class="lp-logo-mark"' in html)
+print("\n=== E. Wordmark ===")
 check("lp-wordmark img tag present", 'class="lp-wordmark"' in html)
 check("old HTML span brand-name ABSENT", '<span class="lp-brand-name">' not in html)
 

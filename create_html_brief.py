@@ -719,16 +719,14 @@ def inject_landing_page(html_content, _re, df=None):
                           inr_sp10_str, inr_sp10_dir, inr_sp10_col, inr_rows,
                           spread_label='US 2Y\u2013IN 10Y (cross)')
 
-    logo_src     = embed_image(os.path.join('logos', 'logo without bg.png'))
     wordmark_src = embed_image(os.path.join('logos', 'wordmark without bg.png'))
-    logo_img     = f'<img src="{logo_src}" class="lp-logo-mark" alt="">' if logo_src else ''
     wordmark_img = f'<img src="{wordmark_src}" class="lp-wordmark" alt="FX Regime Lab">' if wordmark_src else ''
     from config import TODAY_FMT
     landing_html = f'''<!-- LANDING PAGE -->
 <div id="landing">
   <div class="lp-header">
     <div class="lp-title-block">
-      <div class="lp-logo-row">{logo_img}{wordmark_img}</div>
+      <div class="lp-logo-row">{wordmark_img}</div>
       <div class="lp-framework-label">G10 FX Regime Detection Framework</div>
       <div class="lp-morning-brief">Morning Brief</div>
       <div class="lp-date">{TODAY_FMT}</div>
@@ -1090,7 +1088,7 @@ body { background: #0a0e1a !important; }
 .badge-neutral-card { background: #1d2235 !important; color: #888 !important; }
 
 /* 11. Wordmark image sizing */
-.lp-wordmark { height: 28px; width: auto; display: block; flex-shrink: 0; }
+.lp-wordmark { height: 40px; width: auto; display: block; margin-bottom: 6px; }
 /* end brand-v2 */'''
     html_content = _rb.sub(
         r'</style>\s*</head>',
