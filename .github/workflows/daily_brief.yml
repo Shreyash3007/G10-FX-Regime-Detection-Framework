@@ -31,6 +31,10 @@ jobs:
 
       - name: Write .env from secrets
         run: |
+          if [ -z "${{ secrets.FRED_API_KEY }}" ]; then
+            echo "ERROR: FRED_API_KEY secret is not set in repo settings"
+            exit 1
+          fi
           echo "FRED_API_KEY=${{ secrets.FRED_API_KEY }}" > .env
 
       - name: Configure git identity
@@ -40,9 +44,10 @@ jobs:
 
       - name: Run pipeline (skip deploy — handled below)
         run: |
-          # First attempt
-          python run.py --skip deploy && echo "RUN_OK=true" >> $GITHUB_ENV || true
-          if [ "$RUN_OK" != "true" ]; then
+          # First attempt — capture exit code explicitly
+          if python run.py --skip deploy; then
+            echo "RUN_OK=true" >> "$GITHUB_ENV"
+          else
             echo "First attempt failed, retrying in 60s…"
             sleep 60
             python run.py --skip deploy

@@ -45,9 +45,9 @@ def deploy():
     print(f"copied {BRIEF_SOURCE_FINAL} -> {DEPLOY_TARGET} (patched iframe paths)")
 
     # git add, commit, push
+    # NOTE: git add MUST come before pull --rebase; otherwise rebase fails on
+    # unstaged changes ("cannot pull with rebase: You have unstaged changes").
     try:
-        # pull remote changes first to avoid rejected push on diverged branches
-        subprocess.run(["git", "pull", "--rebase", "origin", "main"], check=True)
         subprocess.run(["git", "add", "-A"], check=True)
         # check if there is actually anything staged to commit
         status = subprocess.run(
@@ -58,6 +58,8 @@ def deploy():
             print("index.html unchanged -- nothing to commit, skipping push")
             print(f"live at: https://shreyash3007.github.io/G10-FX-Regime-Detection-Framework/")
             return
+        # Pull remote changes after staging so rebase doesn't choke on unstaged files
+        subprocess.run(["git", "pull", "--rebase", "origin", "main"], check=True)
         subprocess.run(["git", "commit", "-m",
                        f"brief update {TODAY} {datetime.now().strftime('%H:%M')} IST"],
                       check=True)
@@ -65,8 +67,9 @@ def deploy():
         print(f"pushed to GitHub at {datetime.now().strftime('%H:%M')} IST")
         print(f"live at: https://shreyash3007.github.io/G10-FX-Regime-Detection-Framework/")
     except subprocess.CalledProcessError as e:
-        print(f"git push failed: {e}")
-        print("brief copied locally but not pushed - check git credentials")
+        print(f"ERROR: git operation failed: {e}")
+        print("brief is saved locally but NOT pushed to GitHub — check git credentials/network")
+        raise SystemExit(1)  # propagate failure so callers (run.py / run_all.py) know deploy failed
 
 if __name__ == "__main__":
     deploy()
