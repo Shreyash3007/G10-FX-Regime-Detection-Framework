@@ -432,6 +432,10 @@ def calculate_differentials(yields_df):
 
     # BTP-Bund spread: Italian 10Y minus German 10Y (Phase 9 — eurozone fragmentation signal)
     if "IT_10Y" in yields_df.columns and "DE_10Y" in yields_df.columns:
+        # ffill up to 90 days: IT_10Y source is monthly (FRED/OECD) and lags 1-2 months;
+        # forward-filling the last known value keeps the spread non-NaN while remaining
+        # economically valid (Italian yields change slowly over short horizons).
+        yields_df["IT_10Y"] = yields_df["IT_10Y"].ffill(limit=90)
         diff["BTP_Bund_spread"] = yields_df["IT_10Y"] - yields_df["DE_10Y"]
 
         def _btp_flag(x):
