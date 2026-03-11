@@ -368,6 +368,16 @@ def inject_live_card_data(html_content, _re, df=None):
         ),
     }
 
+    # Strip previously injected idempotent strips so re-runs are clean
+    html_content = _re.sub(
+        r'<!-- BTP-WARN-STRIP -->[\s\S]*?<!-- /BTP-WARN-STRIP -->',
+        '', html_content,
+    )
+    html_content = _re.sub(
+        r'<!-- MACRO-EVENT-STRIP -->\n[\s\S]*?<!-- /MACRO-EVENT-STRIP -->\n',
+        '', html_content,
+    )
+
     for pair, cfg in pairs_cfg.items():
         card_anchor = f'id="card-{pair}"'
         anchor_pos  = html_content.find(card_anchor)
@@ -555,6 +565,48 @@ def inject_live_card_data(html_content, _re, df=None):
                          + new_brief_left
                          + '\n\n      '
                          + card_html[br_idx:])
+
+        # ---- BTP-Bund top-of-card warning strip (Phase 9, idempotent) ----
+        if pair == 'eurusd':
+            _btp_flag = str(row.get('BTP_Bund_flag', 'UNAVAILABLE'))
+            if _btp_flag == 'nan':
+                _btp_flag = 'UNAVAILABLE'
+            if _btp_flag in ('ELEVATED', 'STRESS'):
+                _strip_bg = '#1a0a00' if _btp_flag == 'ELEVATED' else '#1a0000'
+                _strip_fg = '#f0a500' if _btp_flag == 'ELEVATED' else '#ff4444'
+                _btp_warn = (
+                    f'<!-- BTP-WARN-STRIP -->'
+                    f'<div style="background:{_strip_bg};border-bottom:1px solid {_strip_fg}44;'
+                    f'padding:6px 16px;font-size:0.82em;color:{_strip_fg};letter-spacing:0.05em;">'
+                    f'\u26a0\ufe0f  BTP-Bund {_btp_flag}: Italian sovereign risk elevated'
+                    f' \u2014 EUR/USD upside constrained.</div><!-- /BTP-WARN-STRIP -->'
+                )
+                card_html = _re.sub(
+                    r'(<div[^>]+id="card-eurusd"[^>]*>)',
+                    lambda m, _w=_btp_warn: m.group(1) + _w,
+                    card_html, count=1,
+                )
+            # ---- Macro event strip before EUR/USD card (Phase 10, idempotent) ----
+            _evt = get_upcoming_event()
+            if _evt is not None:
+                _days   = _evt['days_away']
+                _evt_nm = _evt['event']
+                _fg     = '#ff4444' if _days <= 1 else '#f0a500'
+                _when   = (
+                    'Today' if _days == 0 else
+                    'Tomorrow' if _days == 1 else
+                    f'in {_days} days'
+                )
+                card_html = (
+                    f'<!-- MACRO-EVENT-STRIP -->\n'
+                    f'<div class="macro-event-strip" style="background:{_fg}11;'
+                    f'border-top:1px solid {_fg}44;border-bottom:1px solid {_fg}44;'
+                    f'padding:10px 20px;font-size:0.85em;color:{_fg};'
+                    f'letter-spacing:0.05em;text-align:center;">'
+                    f'\U0001f4c5 Upcoming: <strong>{_html.escape(_evt_nm)}</strong>'
+                    f' \u2014 {_when}</div>\n<!-- /MACRO-EVENT-STRIP -->\n'
+                    + card_html
+                )
 
         html_content = html_content[:card_start] + card_html + html_content[card_end:]
 

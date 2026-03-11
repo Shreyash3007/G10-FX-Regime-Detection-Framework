@@ -274,7 +274,7 @@ def save_cot(positioning_dict):
     cot_df = pd.concat(frames, axis=1)
     cot_df.index.name = "date"
 
-    cot_df.to_csv("data/cot_latest.csv")
+    cot_df.to_csv("data/cot_latest.csv", encoding='utf-8')
     print(f"\n    saved: data/cot_latest.csv")
     print(f"    rows: {len(cot_df)}, "
           f"from {cot_df.index[0].date()} to {cot_df.index[-1].date()}")
@@ -299,13 +299,13 @@ def merge_with_master(cot_df):
         print("    run pipeline.py first, then cot_pipeline.py")
         return
 
-    master    = pd.read_csv(master_path, index_col=0, parse_dates=True)
+    master    = pd.read_csv(master_path, index_col=0, parse_dates=True, encoding='utf-8')
     cot_daily = cot_df.reindex(master.index).ffill()
 
     for col in cot_daily.columns:
         master[col] = cot_daily[col]
 
-    master.to_csv(LATEST_WITH_COT_CSV)
+    master.to_csv(LATEST_WITH_COT_CSV, encoding='utf-8')
     print(f"    saved: {LATEST_WITH_COT_CSV}")
     print(f"    shape: {master.shape[0]} rows x {master.shape[1]} columns")
 

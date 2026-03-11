@@ -25,6 +25,13 @@ from config import TODAY, START_DATE, MAX_FFILL_DAYS, VOL_WINDOW, ROLLING_WINDOW
 
 load_dotenv()
 FRED_KEY = os.getenv("FRED_API_KEY")
+if not FRED_KEY:
+    import warnings
+    warnings.warn(
+        "FRED_API_KEY not set — FRED data fetches will fail",
+        RuntimeWarning,
+        stacklevel=2,
+    )
 fred     = Fred(api_key=FRED_KEY)
 
 # -- settings ------------------------------------------------------------------
@@ -486,8 +493,12 @@ def calculate_volatility(master):
         pct_col = f"{pair}_vol_pct"
         if col not in master.columns:
             continue
-        v = master[col].dropna().iloc[-1]
-        p = master[pct_col].dropna().iloc[-1]
+        _vol_s  = master[col].dropna()
+        _vopp_s = master[pct_col].dropna()
+        if _vol_s.empty or _vopp_s.empty:
+            continue
+        v = _vol_s.iloc[-1]
+        p = _vopp_s.iloc[-1]
         flag = "EXTREME" if p >= 90 else ("ELEVATED" if p >= 75 else "NORMAL")
         print(f"    {pair}: {v:.1f}% annualized | {p:.0f}th pct | {flag}")
 
@@ -1006,7 +1017,7 @@ def save_data(master):
     # never leaves dated file written but latest.csv stale/corrupted.
     for target in [dated, "data/latest.csv"]:
         tmp = target + ".tmp"
-        master.to_csv(tmp)
+        master.to_csv(tmp, encoding='utf-8')
         os.replace(tmp, target)
 
     print(f"\n    saved: {dated}")

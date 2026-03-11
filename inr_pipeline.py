@@ -101,7 +101,7 @@ def _fbil_history(start_date: str = START_DATE) -> pd.DataFrame:
     cached = pd.DataFrame()
     if os.path.exists(_FBIL_CACHE):
         try:
-            cached = pd.read_csv(_FBIL_CACHE, index_col=0, parse_dates=True)
+            cached = pd.read_csv(_FBIL_CACHE, index_col=0, parse_dates=True, encoding='utf-8')
             cached.index = pd.to_datetime(cached.index.date)
             print(f"    FBIL cache: {len(cached)} rows, "
                   f"last = {cached.index[-1].date()}")
@@ -123,7 +123,7 @@ def _fbil_history(start_date: str = START_DATE) -> pd.DataFrame:
 
     if new_days:
         print(f"    FBIL: fetching {len(new_days)} new business days "
-              f"({new_days[0]} → {new_days[-1]})")
+              f"({new_days[0]} to {new_days[-1]})")
     else:
         print(f"    FBIL: cache is up to date")
 
@@ -167,7 +167,7 @@ def _fbil_history(start_date: str = START_DATE) -> pd.DataFrame:
         combined["IN_repo_proxy"] = combined["IN_10Y"] - 1.5
         # atomic write: write to .tmp then rename so a crash can't corrupt cache
         _tmp = _FBIL_CACHE + ".tmp"
-        combined.to_csv(_tmp)
+        combined.to_csv(_tmp, encoding='utf-8')
         os.replace(_tmp, _FBIL_CACHE)
         print(f"    FBIL cache updated: {len(combined)} rows total, "
               f"last = {combined.index[-1].date()}")
@@ -410,7 +410,7 @@ def build_and_save(price_df, yield_df, fpi_df, fpi_status):
         print(f"    USDINR vol: {_v:.1f}% annualized | {_p:.0f}th pct | {_flag}")
 
     inr.index.name = "date"
-    inr.to_csv("data/inr_latest.csv")
+    inr.to_csv("data/inr_latest.csv", encoding='utf-8')
     print(f"    saved: data/inr_latest.csv  ({len(inr)} rows x {len(inr.columns)} cols)")
 
     # merge into latest_with_cot.csv
@@ -586,7 +586,7 @@ def build_and_save(price_df, yield_df, fpi_df, fpi_status):
                     chg.iloc[pos] = curr - s.iloc[best_int_pos]
                 master[chg_col] = chg
 
-        master.to_csv(master_path)
+        master.to_csv(master_path, encoding='utf-8')
         print(f"    merged into: {master_path}  ({master.shape[1]} cols total)")
 
         inr_cols = [c for c in master.columns if "IN" in c or "INR" in c]

@@ -28,7 +28,13 @@ class _Tee:
         self._logfile = logfile
 
     def write(self, data):
-        self._stream.write(data)
+        try:
+            self._stream.write(data)
+        except UnicodeEncodeError:
+            safe = data.encode(getattr(self._stream, 'encoding', 'utf-8') or 'utf-8',
+                               errors='replace').decode(
+                               getattr(self._stream, 'encoding', 'utf-8') or 'utf-8')
+            self._stream.write(safe)
         self._logfile.write(data)
 
     def flush(self):
