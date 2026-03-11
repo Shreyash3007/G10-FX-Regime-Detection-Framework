@@ -464,8 +464,10 @@ def build_and_save(price_df, yield_df, fpi_df, fpi_status):
     if len(yield_df) > 0:
         is_monthly = getattr(yield_df, 'is_monthly', True)
         if is_monthly:
-            # FRED fallback: cap forward-fill at 22 rows (1 calendar month approx)
-            yield_daily = yield_df.reindex(inr.index).ffill(limit=22)
+            # FRED fallback: FRED INDIRLTLT01STM lags ~2 months (last print Jan 2026).
+            # Cap at 90 trading days (~4 months) so CI runs through April without
+            # going NaN — mirrors the IT_10Y / BTP-Bund fix already in pipeline.py.
+            yield_daily = yield_df.reindex(inr.index).ffill(limit=90)
             source_label = "FRED monthly (fallback)"
         else:
             # FBIL daily: allow up to 5-day fill (weekends / holidays only)

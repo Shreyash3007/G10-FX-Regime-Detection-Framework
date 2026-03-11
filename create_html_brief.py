@@ -458,9 +458,37 @@ def inject_live_card_data(html_content, _re, df=None):
                            f'<div class="brief-label">POSITIONING (COT)</div>\n          '
                            f'{cot_body}</div>')
         else:
-            cot_section = ('<div class="brief-section">\n          '
-                           '<div class="brief-label">POSITIONING (COT)</div>\n          '
-                           '<div class="brief-muted">FPI proxy unavailable</div>\n          </div>')
+            # USD/INR: no CFTC COT data — show FPI flows instead
+            fpi_flow_val = _g('FPI_20D_flow')
+            fpi_pct_val  = _g('FPI_20D_percentile')
+            if not math.isnan(fpi_flow_val):
+                fpi_dir   = 'INFLOW' if fpi_flow_val > 0 else 'OUTFLOW'
+                fpi_color = '#00d4aa' if fpi_flow_val > 0 else '#ff4444'
+                if not math.isnan(fpi_pct_val):
+                    fpi_pct_str = f'{fpi_pct_val:.0f}th %ile'
+                    if fpi_pct_val >= 75:   fpi_bdg = 'badge-danger',  f'HEAVY {fpi_dir}'
+                    elif fpi_pct_val <= 25: fpi_bdg = 'badge-danger',  f'HEAVY {fpi_dir}'
+                    else:                   fpi_bdg = 'badge-neutral', fpi_dir
+                else:
+                    fpi_pct_str = '\u2014'
+                    fpi_bdg = ('badge-neutral', fpi_dir)
+                fpi_row = (
+                    f'<div class="brief-row">'
+                    f'<span class="name">FPI 20D Flow</span>'
+                    f'<span class="pct" style="color:{fpi_color}">{fpi_flow_val:+,.0f} Cr</span>'
+                    f'<span class="pct">{fpi_pct_str}</span>'
+                    f'<span class="badge-mini {fpi_bdg[0]}">{fpi_bdg[1]}</span>'
+                    f'</div>\n          '
+                )
+                cot_section = (
+                    '<div class="brief-section">\n          '
+                    '<div class="brief-label">POSITIONING (FPI PROXY)</div>\n          '
+                    f'{fpi_row}</div>'
+                )
+            else:
+                cot_section = ('<div class="brief-section">\n          '
+                               '<div class="brief-label">POSITIONING (FPI PROXY)</div>\n          '
+                               '<div class="brief-muted">FPI data building...</div>\n          </div>')
 
         vol_val  = _g(cfg['vol_col'])
         vol_pct  = _g(cfg['vol_pct_col'])
@@ -1010,7 +1038,7 @@ def inject_landing_page(html_content, _re, df=None):
       <div class="lp-framework-label">G10 FX Regime Detection Framework</div>
       <div class="lp-morning-brief">Morning Brief</div>
       <div class="lp-date">{TODAY_FMT}</div>
-      <div class="lp-meta">FX as of: {date_str} &nbsp;&nbsp;|&nbsp;&nbsp; IN 10Y as of: {in10y_date_str} &nbsp;&nbsp;|&nbsp;&nbsp; COT cutoff: {cot_cutoff_str} (pub&apos;d: {cot_published_str}) &nbsp;&nbsp;|&nbsp;&nbsp; run: {pd.Timestamp.now().strftime("%d %b %Y %H:%M")} IST</div>
+      <div class="lp-meta">FX as of: {date_str} &nbsp;&nbsp;|&nbsp;&nbsp; IN 10Y as of: {in10y_date_str} &nbsp;&nbsp;|&nbsp;&nbsp; COT cutoff: {cot_cutoff_str} (pub&apos;d: {cot_published_str}) &nbsp;&nbsp;|&nbsp;&nbsp; run: {pd.Timestamp.now(tz='Asia/Kolkata').strftime("%d %b %Y %H:%M")} IST</div>
     </div>
     <a href="#workspace-snap" class="lp-ws-btn">WORKSPACE &#9654;</a>
   </div>
