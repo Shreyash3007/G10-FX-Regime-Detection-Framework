@@ -14,6 +14,8 @@ from create_charts_plotly import (
     build_positioning_chart,
     build_vol_correlation_chart,
     build_cross_asset_chart,
+    build_boj_signal_chart,
+    build_fpi_flows_chart,
 )
 from charts.workspace import build_global_workspace_html
 
@@ -30,10 +32,12 @@ CHART_REGISTRY = {
     ("usdjpy", 1): (build_positioning_chart,     "usdjpy", 400),
     ("usdjpy", 2): (build_vol_correlation_chart, "usdjpy", 360),
     ("usdjpy", 3): (build_cross_asset_chart,     "usdjpy", 460),
+    ("usdjpy", 4): (build_boj_signal_chart,      "usdjpy", 400),
 
     ("usdinr", 0): (build_fundamentals_chart,    "usdinr", 320),
     ("usdinr", 1): (build_vol_correlation_chart, "usdinr", 360),
     ("usdinr", 2): (build_cross_asset_chart,     "usdinr", 460),
+    ("usdinr", 3): (build_fpi_flows_chart,       "usdinr", 380),
 }
 
 

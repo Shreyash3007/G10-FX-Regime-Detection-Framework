@@ -434,6 +434,8 @@ def calculate_differentials(yields_df):
 
     # US 2Y minus Japan 10Y -- main cross-maturity driver of USD/JPY
     diff["US_JP_10Y_spread"] = _spread("US_2Y", "JP_10Y")
+    # 5-day momentum of the US-JP spread (BoJ signal: rate of change over a week)
+    diff["US_JP_10Y_spread_accel"] = diff["US_JP_10Y_spread"].diff(5)
 
     # US 2Y minus Japan 2Y -- same-maturity driver of USD/JPY
     diff["US_JP_2Y_spread"] = _spread("US_2Y", "JP_2Y")

@@ -1,6 +1,5 @@
 import os
 import glob
-import math
 import html as _html
 import pandas as pd
 import numpy as np
@@ -101,7 +100,7 @@ def inject_live_card_data(html_content, _re, df=None):
         v = row.get(col, default)
         try:
             fv = float(v)
-            return default if math.isnan(fv) else fv
+            return default if pd.isna(fv) else fv
         except Exception:
             return default
 
@@ -109,39 +108,39 @@ def inject_live_card_data(html_content, _re, df=None):
     def _sign(val):     return '+' if val > 0 else ''
 
     def _pct_fmt(val):
-        if math.isnan(val): return '\u2014', '#888'
+        if pd.isna(val): return '\u2014', '#888'
         return f'{_sign(val)}{val:.2f}%', _chg_col(val)
 
     def _pp_fmt(val, favor_narrow=True):
-        if math.isnan(val): return '\u2014', '#888'
+        if pd.isna(val): return '\u2014', '#888'
         color = '#00d4aa' if (val < 0) == favor_narrow else '#ff4444'
         return f'{_sign(val)}{val:.2f}pp', color
 
     def _vol_pctile_badge(pct):
-        if math.isnan(pct): return '\u2014', 'badge-neutral', '\u2014'
+        if pd.isna(pct): return '\u2014', 'badge-neutral', '\u2014'
         s = f'{pct:.0f}th %ile'
         if pct >= 90: return s, 'badge-danger',  'EXTREME'
         if pct >= 75: return s, 'badge-warning', 'ELEVATED'
         return s, 'badge-neutral', 'NORMAL'
 
     def _corr_badge(corr):
-        if math.isnan(corr): return '\u2014', '#555', 'badge-neutral', 'NO DATA'
+        if pd.isna(corr): return '\u2014', '#555', 'badge-neutral', 'NO DATA'
         if corr >= 0.6:  return f'{corr:+.3f}', '#00d4aa', 'badge-success',  'INTACT'
         if corr >= 0.3:  return f'{corr:+.3f}', '#888',    'badge-neutral',  'WEAKENING'
         if corr >= -0.3: return f'{corr:+.3f}', '#ff4444', 'badge-danger',   'BROKEN'
         return f'{corr:+.3f}', '#f0a500', 'badge-warning', 'INVERTED'
 
     def _header_badge(lev_pct, lev_net, am_pct, am_net):
-        if math.isnan(lev_pct) and math.isnan(am_pct):
+        if pd.isna(lev_pct) and pd.isna(am_pct):
             return 'RATE DIFF ONLY', 'badge-neutral-card'
-        if not math.isnan(lev_pct) and lev_pct >= 80 and not math.isnan(lev_net) and lev_net > 0:
+        if not pd.isna(lev_pct) and lev_pct >= 80 and not pd.isna(lev_net) and lev_net > 0:
             return 'CROWDED LONG', 'badge-crowded-long'
-        if not math.isnan(lev_pct) and lev_pct <= 20 and not math.isnan(lev_net) and lev_net < 0:
+        if not pd.isna(lev_pct) and lev_pct <= 20 and not pd.isna(lev_net) and lev_net < 0:
             return 'CROWDED SHORT', 'badge-crowded-short'
         return 'NEUTRAL', 'badge-neutral-card'
 
     def _spread_row(name, val, chg, favor_narrow=True):
-        val_str = f'{val:.2f}%' if not math.isnan(val) else '\u2014'
+        val_str = f'{val:.2f}%' if not pd.isna(val) else '\u2014'
         chg_str, c = _pp_fmt(chg, favor_narrow)
         return (f'<div class="brief-row">'
                 f'<span class="name">{name}</span>'
@@ -149,10 +148,10 @@ def inject_live_card_data(html_content, _re, df=None):
                 f'<span class="pct" style="color:{c}">{chg_str}</span></div>\n          ')
 
     def _cot_row(name, net, pctoi, pct_rank):
-        if math.isnan(net): return ''
+        if pd.isna(net): return ''
         net_str   = f'{net:+,.0f}'
         direction = 'LONG' if net > 0 else 'SHORT'
-        if not math.isnan(pct_rank):
+        if not pd.isna(pct_rank):
             pct_str = f'{pct_rank:.0f}th %ile'
             if pct_rank >= 85:   bdg_cls, bdg_lbl = 'badge-danger',  f'CROWDED {direction}'
             elif pct_rank >= 70: bdg_cls, bdg_lbl = 'badge-warning', 'EXTENDED'
@@ -167,7 +166,7 @@ def inject_live_card_data(html_content, _re, df=None):
                 f'<span class="badge-mini {bdg_cls}">{bdg_lbl}</span></div>\n          ')
 
     def _vol_row(vol_val, pct_val):
-        vol_str = f'{vol_val:.1f}%' if not math.isnan(vol_val) else '\u2014'
+        vol_str = f'{vol_val:.1f}%' if not pd.isna(vol_val) else '\u2014'
         pctile_str, bdg_cls, bdg_lbl = _vol_pctile_badge(pct_val)
         return (f'<div class="brief-row"><span class="name">30D Vol</span>'
                 f'<span class="val">{vol_str}</span>'
@@ -195,7 +194,7 @@ def inject_live_card_data(html_content, _re, df=None):
 
     def _field_row(label, field, pair_key, is_oil):
         raw = _g(field)
-        if math.isnan(raw):
+        if pd.isna(raw):
             val_str, color, bdg_cls, bdg_lbl = '\u2014', '#555', 'badge-neutral', 'NO DATA'
         else:
             val_str = f'{raw:+.3f}'
@@ -219,7 +218,7 @@ def inject_live_card_data(html_content, _re, df=None):
 
     def _gold_field_row(label, field, pair_key):
         raw = _g(field)
-        if math.isnan(raw):
+        if pd.isna(raw):
             val_str, color, bdg_cls, bdg_lbl = '\u2014', '#555', 'badge-neutral', 'NO DATA'
         else:
             val_str = f'{raw:+.3f}'
@@ -241,7 +240,7 @@ def inject_live_card_data(html_content, _re, df=None):
 
     def _btp_row(spread_val, flag_str):
         btp_text, btp_color = _btp_bund_label(flag_str)
-        spread_str = f'{spread_val:.2f}pp' if not math.isnan(spread_val) else '\u2014'
+        spread_str = f'{spread_val:.2f}pp' if not pd.isna(spread_val) else '\u2014'
         return (f'<div class="brief-row"><span class="name">BTP-Bund (IT-DE)</span>'
                 f'<span class="val">{spread_str}</span>'
                 f'<span></span>'
@@ -251,7 +250,7 @@ def inject_live_card_data(html_content, _re, df=None):
     def _g10_composite_row(score_col, label_col):
         score = _g(score_col)
         label = str(row.get(label_col, 'UNKNOWN'))
-        if math.isnan(score):
+        if pd.isna(score):
             return ''
         if score > 30:
             score_color, bdg_cls = '#ff4444', 'badge-danger'
@@ -282,7 +281,7 @@ def inject_live_card_data(html_content, _re, df=None):
     def _composite_block_html(score_col, label_col, rbi_flag_col):
         score = _g(score_col)
         label = str(row.get(label_col, 'UNKNOWN'))
-        if math.isnan(score):
+        if pd.isna(score):
             return ''
         if score > 30:
             score_color, bdg_cls = '#ff4444', 'badge-danger'
@@ -301,7 +300,7 @@ def inject_live_card_data(html_content, _re, df=None):
         rbi_fv   = str(row.get(rbi_flag_col, 'NEUTRAL'))
         if rbi_fv == 'nan': rbi_fv = 'NEUTRAL'
         _rbi_w = {'ACTIVE SUPPORT': -0.30, 'ACTIVE CAPPING': 0.20, 'NEUTRAL': 0.0, 'UNKNOWN': 0.0}
-        def _s(v): return 0.0 if math.isnan(v) else float(v)
+        def _s(v): return 0.0 if pd.isna(v) else float(v)
         def _sg(v): return 1.0 if v > 0 else (-1.0 if v < 0 else 0.0)
         oil_s  = _s(oil_corr) * _sg(_s(brent1d)) * 0.25 * 100
         dxy_s  = _s(dxy_corr) * _sg(_s(dxy1d))   * 0.20 * 100
@@ -412,7 +411,7 @@ def inject_live_card_data(html_content, _re, df=None):
         price_val        = _g(cfg['price_col'])
         chg_1d_val       = _g(cfg['chg_1d'])
         chg_12m_val      = _g(cfg['chg_12m'])
-        price_str        = f"{price_val:.{cfg['price_dec']}f}" if not math.isnan(price_val) else '\u2014'
+        price_str        = f"{price_val:.{cfg['price_dec']}f}" if not pd.isna(price_val) else '\u2014'
         chg_1d_str,  c1d = _pct_fmt(chg_1d_val)
         chg_12m_str, c12 = _pct_fmt(chg_12m_val)
         lev_pct = _g(cfg['cot_lev_pct']) if cfg['cot_lev_pct'] else float('nan')
@@ -461,10 +460,10 @@ def inject_live_card_data(html_content, _re, df=None):
             # USD/INR: no CFTC COT data — show FPI flows instead
             fpi_flow_val = _g('FPI_20D_flow')
             fpi_pct_val  = _g('FPI_20D_percentile')
-            if not math.isnan(fpi_flow_val):
+            if not pd.isna(fpi_flow_val):
                 fpi_dir   = 'INFLOW' if fpi_flow_val > 0 else 'OUTFLOW'
                 fpi_color = '#00d4aa' if fpi_flow_val > 0 else '#ff4444'
-                if not math.isnan(fpi_pct_val):
+                if not pd.isna(fpi_pct_val):
                     fpi_pct_str = f'{fpi_pct_val:.0f}th %ile'
                     if fpi_pct_val >= 75:   fpi_bdg = 'badge-danger',  f'HEAVY {fpi_dir}'
                     elif fpi_pct_val <= 25: fpi_bdg = 'badge-danger',  f'HEAVY {fpi_dir}'
@@ -497,16 +496,16 @@ def inject_live_card_data(html_content, _re, df=None):
         vc = _vol_row(vol_val, vol_pct)
         if cfg['corr_col']:
             vc += _corr_row(corr_val)
-        if cfg.get('corr_20d_col') and not math.isnan(corr_20d_val):
+        if cfg.get('corr_20d_col') and not pd.isna(corr_20d_val):
             vc += _corr_row_20d(corr_20d_val)
-            if not math.isnan(corr_val) and abs(corr_20d_val - corr_val) > 0.3:
+            if not pd.isna(corr_val) and abs(corr_20d_val - corr_val) > 0.3:
                 vc += _regime_transition_row()
         vc += _field_row('Oil corr 60D', cfg['oil_field'], cfg['oil_pair'], is_oil=True)
         if cfg.get('gold_field'):
             vc += _gold_field_row('Gold corr 60D', cfg['gold_field'], cfg['gold_pair'])
             if cfg.get('seasonal_flag_col'):
                 flag_numeric = _g(cfg['seasonal_flag_col'])
-                if not math.isnan(flag_numeric) and flag_numeric > 0.5:
+                if not pd.isna(flag_numeric) and flag_numeric > 0.5:
                     s_label = row.get(cfg['seasonal_label_col'], '')
                     if s_label and str(s_label) not in ('nan', 'None', ''):
                         vc += _seasonal_row(str(s_label))
@@ -521,7 +520,7 @@ def inject_live_card_data(html_content, _re, df=None):
             rbi_flag_val = str(row.get(cfg['rbi_flag_col'], 'UNKNOWN'))
             rbi_chg_val  = _g(cfg['rbi_chg_col'])
             rbi_text, rbi_color, _rbi_active = _rbi_intervention_label(rbi_flag_val)
-            chg_str  = f'{rbi_chg_val:+.1f}B' if not math.isnan(rbi_chg_val) else '\u2014'
+            chg_str  = f'{rbi_chg_val:+.1f}B' if not pd.isna(rbi_chg_val) else '\u2014'
             rbi_body = _rbi_row(chg_str, rbi_text, rbi_color)
             rbi_section = (f'<div class="brief-section">\n          '
                            f'<div class="brief-label">CENTRAL BANK ACTIVITY</div>\n          '
@@ -563,7 +562,7 @@ def inject_live_card_data(html_content, _re, df=None):
             de10_12m    = _g('US_DE_10Y_spread_chg_12M')
             regime_text = _eur_interpretation(de10_today, de10_12m, lev_pct, lev_net, am_pct, am_net)
             eur_vol_pct = _g('EURUSD_vol_pct')
-            if not math.isnan(eur_vol_pct):
+            if not pd.isna(eur_vol_pct):
                 if eur_vol_pct >= 90:  regime_text += ' vol EXTREME \u2014 forced liquidation risk, fundamental signals unreliable.'
                 elif eur_vol_pct >= 75: regime_text += ' vol elevated \u2014 positioning signals less reliable.'
         elif pair == 'usdjpy':
@@ -571,14 +570,14 @@ def inject_live_card_data(html_content, _re, df=None):
             jp10_12m    = _g('US_JP_10Y_spread_chg_12M')
             regime_text = _jpy_interpretation(jp10_today, jp10_12m, lev_pct, lev_net, am_pct, am_net)
             jpy_vol_pct = _g('USDJPY_vol_pct')
-            if not math.isnan(jpy_vol_pct):
+            if not pd.isna(jpy_vol_pct):
                 if jpy_vol_pct >= 90:  regime_text += ' vol EXTREME \u2014 forced liquidation risk, fundamental signals unreliable.'
                 elif jpy_vol_pct >= 75: regime_text += ' vol elevated \u2014 positioning signals less reliable.'
         else:  # usdinr
             in10_spr = _g('US_IN_10Y_spread')
-            in10_str = f'{in10_spr:.2f}%' if not math.isnan(in10_spr) else '\u2014'
-            prem     = abs(in10_spr) if not math.isnan(in10_spr) else 0.0
-            if not math.isnan(in10_spr) and in10_spr < 0:
+            in10_str = f'{in10_spr:.2f}%' if not pd.isna(in10_spr) else '\u2014'
+            prem     = abs(in10_spr) if not pd.isna(in10_spr) else 0.0
+            if not pd.isna(in10_spr) and in10_spr < 0:
                 regime_text = (f'US-IN spread at {in10_str}. India yield premium intact at {prem:.2f}pp. '
                                f'Rate differential favors INR strength. FPI positioning data pending.')
             else:
@@ -596,10 +595,10 @@ def inject_live_card_data(html_content, _re, df=None):
         composite_block = f'        {composite_section}\n\n' if composite_section else ''
         g10_comp_block  = f'        {g10_composite_section}\n\n' if g10_composite_section else ''
         new_brief_left = ('\n      <div class="brief-left">\n\n'
-                          f'        {spread_section}\n\n'
                           f'        {cot_section}\n\n'
                           f'{rbi_block}'
                           f'        {vol_section}\n\n'
+                          f'        {spread_section}\n\n'
                           f'{composite_block}'
                           f'{g10_comp_block}'
                           f'        {regime_section}\n'
@@ -675,7 +674,7 @@ def inject_cross_asset_values(html_content, _re, df=None):
         raw = row.get(field_name, float('nan'))
         is_oil = field_name in _OIL_FIELDS
 
-        if isinstance(raw, float) and math.isnan(raw):
+        if isinstance(raw, float) and pd.isna(raw):
             formatted = '&mdash;'
             label     = 'NO DATA'
         else:
@@ -714,7 +713,7 @@ def update_globalbar(html_content, _re, df=None):
         return html_content
 
     def _colored(pct):
-        if isinstance(pct, float) and math.isnan(pct):
+        if isinstance(pct, float) and pd.isna(pct):
             return ''
         color = '#00d4aa' if pct >= 0 else '#ff4444'
         sign  = '+' if pct >= 0 else ''
@@ -731,7 +730,7 @@ def update_globalbar(html_content, _re, df=None):
     for price_col, chg_col, prefix, fmt in assets:
         price = row.get(price_col, float('nan'))
         chg   = row.get(chg_col,   float('nan'))
-        if isinstance(price, float) and math.isnan(price):
+        if isinstance(price, float) and pd.isna(price):
             continue
         parts.append(f'{prefix}{fmt(price)}{_colored(chg)}')
 
@@ -765,7 +764,7 @@ def _mini_signal_row(name, val_str, val_color, badge_label, badge_css):
 
 
 def _regime_corr_info(corr_val):
-    if math.isnan(corr_val): return '\u2014', '#555', 'badge-neutral', 'NO DATA'
+    if pd.isna(corr_val): return '\u2014', '#555', 'badge-neutral', 'NO DATA'
     if corr_val >= 0.6:  return f'{corr_val:+.3f}', '#00d4aa', 'badge-success',  'INTACT'
     if corr_val >= 0.3:  return f'{corr_val:+.3f}', '#888888', 'badge-neutral',  'WEAKENING'
     if corr_val >= -0.3: return f'{corr_val:+.3f}', '#ff4444', 'badge-danger',   'BROKEN'
@@ -820,7 +819,7 @@ def inject_landing_page(html_content, _re, df=None):
             return default
 
     def _chg_span(pct, big=False):
-        if math.isnan(pct): return '\u2014'
+        if pd.isna(pct): return '\u2014'
         color = '#00d4aa' if pct >= 0 else '#ff4444'
         sign  = '+' if pct >= 0 else ''
         sz    = '14px' if big else '11px'
@@ -828,18 +827,18 @@ def inject_landing_page(html_content, _re, df=None):
 
     def _price_fmt(col, decimals=4):
         v = _g(col)
-        if math.isnan(v): return '\u2014'
+        if pd.isna(v): return '\u2014'
         return f'{v:.{decimals}f}'
 
     def _cot_badge(pct):
-        if math.isnan(pct): return '\u2014', 'badge-neutral'
+        if pd.isna(pct): return '\u2014', 'badge-neutral'
         if pct >= 90: return f'{pct:.0f}th %ile', 'badge-danger'
         if pct >= 75: return f'{pct:.0f}th %ile', 'badge-warning'
         if pct <= 25: return f'{pct:.0f}th %ile', 'badge-danger'
         return f'{pct:.0f}th %ile', 'badge-neutral'
 
     def _vol_badge(pct):
-        if math.isnan(pct): return '\u2014', 'badge-neutral', 'NORMAL'
+        if pd.isna(pct): return '\u2014', 'badge-neutral', 'NORMAL'
         if pct >= 90: return f'{pct:.0f}th %ile', 'badge-danger', 'EXTREME'
         if pct >= 75: return f'{pct:.0f}th %ile', 'badge-warning', 'ELEVATED'
         return f'{pct:.0f}th %ile', 'badge-neutral', 'NORMAL'
@@ -849,23 +848,23 @@ def inject_landing_page(html_content, _re, df=None):
     eur_1d          = _chg_span(_g('EURUSD_chg_1D'), big=True)
     eur_12m         = _chg_span(_g('EURUSD_chg_12M'))
     eur_sp10        = _g('US_DE_10Y_spread')
-    eur_sp10_str    = f'{eur_sp10:.2f}%' if not math.isnan(eur_sp10) else '\u2014'
+    eur_sp10_str    = f'{eur_sp10:.2f}%' if not pd.isna(eur_sp10) else '\u2014'
     eur_sp10_dir    = '\u2193' if _g('US_DE_10Y_spread_chg_1W') < 0 else '\u2191'
     eur_sp10_col    = '#00d4aa' if _g('US_DE_10Y_spread_chg_1W') < 0 else '#ff4444'
     eur_lev_pct     = _g('EUR_lev_percentile', float('nan'))
     eur_lev_str, eur_lev_bdg = _cot_badge(eur_lev_pct)
     eur_vol_pct     = _g('EURUSD_vol_pct', float('nan'))
     eur_vol30       = _g('EURUSD_vol30', float('nan'))
-    eur_vol_str     = f'{eur_vol30:.1f}%' if not math.isnan(eur_vol30) else '\u2014'
-    eur_vol_pctile, eur_vol_bdg, eur_vol_lbl = _vol_badge(eur_vol_pct) if not math.isnan(eur_vol_pct) else ('\u2014', 'badge-neutral', 'NORMAL')
+    eur_vol_str     = f'{eur_vol30:.1f}%' if not pd.isna(eur_vol30) else '\u2014'
+    eur_vol_pctile, eur_vol_bdg, eur_vol_lbl = _vol_badge(eur_vol_pct) if not pd.isna(eur_vol_pct) else ('\u2014', 'badge-neutral', 'NORMAL')
     eur_corr        = _g('EURUSD_spread_corr_60d', float('nan'))
     eur_corr_str, eur_corr_col, eur_corr_bdg, eur_corr_lbl = _regime_corr_info(eur_corr)
     eur_oil_corr    = _g('oil_eurusd_corr_60d', float('nan'))
-    eur_oil_lbl, _ = _oil_corr_label(eur_oil_corr, 'EURUSD') if not math.isnan(eur_oil_corr) else ('NO DATA', '')
+    eur_oil_lbl, _ = _oil_corr_label(eur_oil_corr, 'EURUSD') if not pd.isna(eur_oil_corr) else ('NO DATA', '')
     eur_oil_col     = '#ff4444' if eur_oil_lbl == 'OIL DIVERGENCE' else '#00d4aa' if eur_oil_lbl == 'HIGH' else '#888'
     eur_oil_bdg     = 'badge-danger' if eur_oil_lbl == 'OIL DIVERGENCE' else 'badge-success' if eur_oil_lbl == 'HIGH' else 'badge-neutral'
     eur_dxy_corr    = _g('dxy_eurusd_corr_60d', float('nan'))
-    eur_dxy_lbl, _ = _dxy_corr_label(eur_dxy_corr, 'EURUSD') if not math.isnan(eur_dxy_corr) else ('NO DATA', '')
+    eur_dxy_lbl, _ = _dxy_corr_label(eur_dxy_corr, 'EURUSD') if not pd.isna(eur_dxy_corr) else ('NO DATA', '')
     eur_dxy_col     = '#4da6ff' if eur_dxy_lbl == 'DOLLAR REGIME' else '#00d4aa' if 'SPECIFIC' in eur_dxy_lbl else '#888'
     eur_dxy_bdg     = 'badge-info' if eur_dxy_lbl == 'DOLLAR REGIME' else 'badge-success' if 'SPECIFIC' in eur_dxy_lbl else 'badge-neutral'
 
@@ -874,23 +873,23 @@ def inject_landing_page(html_content, _re, df=None):
     jpy_1d          = _chg_span(_g('USDJPY_chg_1D'), big=True)
     jpy_12m         = _chg_span(_g('USDJPY_chg_12M'))
     jpy_sp10        = _g('US_JP_10Y_spread')
-    jpy_sp10_str    = f'{jpy_sp10:.2f}%' if not math.isnan(jpy_sp10) else '\u2014'
+    jpy_sp10_str    = f'{jpy_sp10:.2f}%' if not pd.isna(jpy_sp10) else '\u2014'
     jpy_sp10_dir    = '\u2193' if _g('US_JP_10Y_spread_chg_1W') < 0 else '\u2191'
     jpy_sp10_col    = '#00d4aa' if _g('US_JP_10Y_spread_chg_1W') < 0 else '#ff4444'
     jpy_lev_pct     = _g('JPY_lev_percentile', float('nan'))
     jpy_lev_str, jpy_lev_bdg = _cot_badge(jpy_lev_pct)
     jpy_vol_pct     = _g('USDJPY_vol_pct', float('nan'))
     jpy_vol30       = _g('USDJPY_vol30', float('nan'))
-    jpy_vol_str     = f'{jpy_vol30:.1f}%' if not math.isnan(jpy_vol30) else '\u2014'
-    jpy_vol_pctile, jpy_vol_bdg, jpy_vol_lbl = _vol_badge(jpy_vol_pct) if not math.isnan(jpy_vol_pct) else ('\u2014', 'badge-neutral', 'NORMAL')
+    jpy_vol_str     = f'{jpy_vol30:.1f}%' if not pd.isna(jpy_vol30) else '\u2014'
+    jpy_vol_pctile, jpy_vol_bdg, jpy_vol_lbl = _vol_badge(jpy_vol_pct) if not pd.isna(jpy_vol_pct) else ('\u2014', 'badge-neutral', 'NORMAL')
     jpy_corr        = _g('USDJPY_spread_corr_60d', float('nan'))
     jpy_corr_str, jpy_corr_col, jpy_corr_bdg, jpy_corr_lbl = _regime_corr_info(jpy_corr)
     jpy_oil_corr    = _g('oil_usdjpy_corr_60d', float('nan'))
-    jpy_oil_lbl, _ = _oil_corr_label(jpy_oil_corr, 'USDJPY') if not math.isnan(jpy_oil_corr) else ('NO DATA', '')
+    jpy_oil_lbl, _ = _oil_corr_label(jpy_oil_corr, 'USDJPY') if not pd.isna(jpy_oil_corr) else ('NO DATA', '')
     jpy_oil_col     = '#ff4444' if jpy_oil_lbl == 'OIL DIVERGENCE' else '#00d4aa' if jpy_oil_lbl == 'HIGH' else '#888'
     jpy_oil_bdg     = 'badge-danger' if jpy_oil_lbl == 'OIL DIVERGENCE' else 'badge-success' if jpy_oil_lbl == 'HIGH' else 'badge-neutral'
     jpy_dxy_corr    = _g('dxy_usdjpy_corr_60d', float('nan'))
-    jpy_dxy_lbl, _ = _dxy_corr_label(jpy_dxy_corr, 'USDJPY') if not math.isnan(jpy_dxy_corr) else ('NO DATA', '')
+    jpy_dxy_lbl, _ = _dxy_corr_label(jpy_dxy_corr, 'USDJPY') if not pd.isna(jpy_dxy_corr) else ('NO DATA', '')
     jpy_dxy_col     = '#4da6ff' if jpy_dxy_lbl == 'DOLLAR REGIME' else '#00d4aa' if 'SPECIFIC' in jpy_dxy_lbl else '#888'
     jpy_dxy_bdg     = 'badge-info' if jpy_dxy_lbl == 'DOLLAR REGIME' else 'badge-success' if 'SPECIFIC' in jpy_dxy_lbl else 'badge-neutral'
 
@@ -899,29 +898,29 @@ def inject_landing_page(html_content, _re, df=None):
     inr_1d          = _chg_span(_g('USDINR_chg_1D'), big=True)
     inr_12m         = _chg_span(_g('USDINR_chg_12M'))
     inr_sp10        = _g('US_IN_10Y_spread')
-    inr_sp10_str    = f'{inr_sp10:.2f}%' if not math.isnan(inr_sp10) else '\u2014'
+    inr_sp10_str    = f'{inr_sp10:.2f}%' if not pd.isna(inr_sp10) else '\u2014'
     inr_sp10_dir    = '\u2193' if _g('US_IN_10Y_spread_chg_1W') < 0 else '\u2191'
     inr_sp10_col    = '#00d4aa' if _g('US_IN_10Y_spread_chg_1W') < 0 else '#ff4444'
     inr_oil_corr    = _g('oil_inr_corr_60d', float('nan'))
-    inr_oil_lbl, _ = _oil_corr_label(inr_oil_corr, 'USDINR') if not math.isnan(inr_oil_corr) else ('NO DATA', '')
+    inr_oil_lbl, _ = _oil_corr_label(inr_oil_corr, 'USDINR') if not pd.isna(inr_oil_corr) else ('NO DATA', '')
     inr_oil_col     = '#ff4444' if inr_oil_lbl == 'OIL DIVERGENCE' else '#00d4aa' if inr_oil_lbl == 'HIGH' else '#888'
     inr_oil_bdg     = 'badge-danger' if inr_oil_lbl == 'OIL DIVERGENCE' else 'badge-success' if inr_oil_lbl == 'HIGH' else 'badge-neutral'
     inr_dxy_corr    = _g('dxy_inr_corr_60d', float('nan'))
-    inr_dxy_lbl, _ = _dxy_corr_label(inr_dxy_corr, 'USDINR') if not math.isnan(inr_dxy_corr) else ('NO DATA', '')
+    inr_dxy_lbl, _ = _dxy_corr_label(inr_dxy_corr, 'USDINR') if not pd.isna(inr_dxy_corr) else ('NO DATA', '')
     inr_dxy_col     = '#4da6ff' if inr_dxy_lbl == 'DOLLAR REGIME' else '#00d4aa' if 'SPECIFIC' in inr_dxy_lbl else '#888'
     inr_dxy_bdg     = 'badge-info' if inr_dxy_lbl == 'DOLLAR REGIME' else 'badge-success' if 'SPECIFIC' in inr_dxy_lbl else 'badge-neutral'
     inr_vol_pct     = _g('USDINR_vol_pct', float('nan'))
     inr_vol30       = _g('USDINR_vol30', float('nan'))
-    inr_vol_str     = f'{inr_vol30:.1f}%' if not math.isnan(inr_vol30) else '\u2014'
-    inr_vol_pctile, inr_vol_bdg, inr_vol_lbl = _vol_badge(inr_vol_pct) if not math.isnan(inr_vol_pct) else ('\u2014', 'badge-neutral', 'NORMAL')
+    inr_vol_str     = f'{inr_vol30:.1f}%' if not pd.isna(inr_vol30) else '\u2014'
+    inr_vol_pctile, inr_vol_bdg, inr_vol_lbl = _vol_badge(inr_vol_pct) if not pd.isna(inr_vol_pct) else ('\u2014', 'badge-neutral', 'NORMAL')
 
     # --- Cross-asset ticker bar ---
     dxy_val        = _g('DXY')
     brent_val      = _g('Brent')
     gold_val       = _g('Gold')
-    dxy_str        = f'{dxy_val:.2f}' if not math.isnan(dxy_val) else '\u2014'
-    brent_str      = f'${brent_val:.2f}' if not math.isnan(brent_val) else '\u2014'
-    gold_str       = f'${gold_val:,.0f}' if not math.isnan(gold_val) else '\u2014'
+    dxy_str        = f'{dxy_val:.2f}' if not pd.isna(dxy_val) else '\u2014'
+    brent_str      = f'${brent_val:.2f}' if not pd.isna(brent_val) else '\u2014'
+    gold_str       = f'${gold_val:,.0f}' if not pd.isna(gold_val) else '\u2014'
 
     def _ticker_item(label, price, chg_col, pair_color=None, extra_class=''):
         chg = _g(chg_col)
@@ -946,7 +945,23 @@ def inject_landing_page(html_content, _re, df=None):
 
     def _pair_card(pair_id, color, display, price_str, chg_1d, chg_12m,
                    spread_str, spread_dir, spread_col,
-                   rows_html, spread_label='Rate Spread (10Y)'):
+                   rows_html, spread_label='Rate Spread (10Y)', composite_score=None):
+        if composite_score is not None and not pd.isna(composite_score):
+            bar_pct   = min(abs(composite_score), 100)
+            bar_color = '#ff4444' if composite_score > 0 else '#00d4aa'
+            bar_dir   = 'BEARISH' if composite_score > 30 else ('BULLISH' if composite_score < -30 else 'NEUTRAL')
+            bar_dir_col = '#ff4444' if composite_score > 30 else ('#00d4aa' if composite_score < -30 else '#888')
+            score_bar_html = (
+                f'<div class="score-bar-wrap" style="margin:6px 0 2px 0">'
+                f'<div class="score-bar-track">'
+                f'<div class="score-bar-fill" style="width:{bar_pct:.0f}%;background:{bar_color}"></div>'
+                f'</div>'
+                f'<span class="score-bar-label" style="color:{bar_dir_col}">'
+                f'{composite_score:+.0f}&nbsp;<span style="font-size:0.8em;letter-spacing:0.06em">{bar_dir}</span>'
+                f'</span></div>'
+            )
+        else:
+            score_bar_html = ''
         return f'''<div class="lp-pair-card">
           <div class="lp-card-header" style="border-top:3px solid {color}">
             <span class="lp-pair-label" style="color:{color}">{display}</span>
@@ -961,7 +976,7 @@ def inject_landing_page(html_content, _re, df=None):
             <span class="lp-spread-label">{spread_label}</span>
             <span class="lp-spread-val" style="color:{spread_col}">{spread_dir} {spread_str}</span>
           </div>
-          <div class="lp-signals">{rows_html}</div>
+          {score_bar_html}<div class="lp-signals">{rows_html}</div>
           <a class="lp-drilldown" href="#{pair_id}">View Detail \u2192</a>
         </div>'''
 
@@ -969,39 +984,45 @@ def inject_landing_page(html_content, _re, df=None):
         _mini_signal_row('Lev Money', eur_lev_str, '#fff', f'{eur_lev_pct:.0f}th pct', eur_lev_bdg) +
         _mini_signal_row('Vol 30D', eur_vol_str, '#fff', eur_vol_lbl, eur_vol_bdg) +
         _mini_signal_row('Regime Corr', eur_corr_str, eur_corr_col, eur_corr_lbl, eur_corr_bdg) +
-        _mini_signal_row('Oil Corr 60D', f'{eur_oil_corr:+.3f}' if not math.isnan(eur_oil_corr) else '\u2014', eur_oil_col, eur_oil_lbl, eur_oil_bdg) +
-        _mini_signal_row('DXY Corr 60D', f'{eur_dxy_corr:+.3f}' if not math.isnan(eur_dxy_corr) else '\u2014', eur_dxy_col, eur_dxy_lbl, eur_dxy_bdg)
-    ) if not math.isnan(eur_lev_pct) else (
+        _mini_signal_row('Oil Corr 60D', f'{eur_oil_corr:+.3f}' if not pd.isna(eur_oil_corr) else '\u2014', eur_oil_col, eur_oil_lbl, eur_oil_bdg) +
+        _mini_signal_row('DXY Corr 60D', f'{eur_dxy_corr:+.3f}' if not pd.isna(eur_dxy_corr) else '\u2014', eur_dxy_col, eur_dxy_lbl, eur_dxy_bdg)
+    ) if not pd.isna(eur_lev_pct) else (
         _mini_signal_row('Regime Corr', eur_corr_str, eur_corr_col, eur_corr_lbl, eur_corr_bdg) +
-        _mini_signal_row('Oil Corr 60D', f'{eur_oil_corr:+.3f}' if not math.isnan(eur_oil_corr) else '\u2014', eur_oil_col, eur_oil_lbl, eur_oil_bdg) +
-        _mini_signal_row('DXY Corr 60D', f'{eur_dxy_corr:+.3f}' if not math.isnan(eur_dxy_corr) else '\u2014', eur_dxy_col, eur_dxy_lbl, eur_dxy_bdg)
+        _mini_signal_row('Oil Corr 60D', f'{eur_oil_corr:+.3f}' if not pd.isna(eur_oil_corr) else '\u2014', eur_oil_col, eur_oil_lbl, eur_oil_bdg) +
+        _mini_signal_row('DXY Corr 60D', f'{eur_dxy_corr:+.3f}' if not pd.isna(eur_dxy_corr) else '\u2014', eur_dxy_col, eur_dxy_lbl, eur_dxy_bdg)
     )
 
     jpy_rows = (
         _mini_signal_row('Lev Money', jpy_lev_str, '#fff', f'{jpy_lev_pct:.0f}th pct', jpy_lev_bdg) +
         _mini_signal_row('Vol 30D', jpy_vol_str, '#fff', jpy_vol_lbl, jpy_vol_bdg) +
         _mini_signal_row('Regime Corr', jpy_corr_str, jpy_corr_col, jpy_corr_lbl, jpy_corr_bdg) +
-        _mini_signal_row('Oil Corr 60D', f'{jpy_oil_corr:+.3f}' if not math.isnan(jpy_oil_corr) else '\u2014', jpy_oil_col, jpy_oil_lbl, jpy_oil_bdg) +
-        _mini_signal_row('DXY Corr 60D', f'{jpy_dxy_corr:+.3f}' if not math.isnan(jpy_dxy_corr) else '\u2014', jpy_dxy_col, jpy_dxy_lbl, jpy_dxy_bdg)
-    ) if not math.isnan(jpy_lev_pct) else (
+        _mini_signal_row('Oil Corr 60D', f'{jpy_oil_corr:+.3f}' if not pd.isna(jpy_oil_corr) else '\u2014', jpy_oil_col, jpy_oil_lbl, jpy_oil_bdg) +
+        _mini_signal_row('DXY Corr 60D', f'{jpy_dxy_corr:+.3f}' if not pd.isna(jpy_dxy_corr) else '\u2014', jpy_dxy_col, jpy_dxy_lbl, jpy_dxy_bdg)
+    ) if not pd.isna(jpy_lev_pct) else (
         _mini_signal_row('Regime Corr', jpy_corr_str, jpy_corr_col, jpy_corr_lbl, jpy_corr_bdg) +
-        _mini_signal_row('Oil Corr 60D', f'{jpy_oil_corr:+.3f}' if not math.isnan(jpy_oil_corr) else '\u2014', jpy_oil_col, jpy_oil_lbl, jpy_oil_bdg) +
-        _mini_signal_row('DXY Corr 60D', f'{jpy_dxy_corr:+.3f}' if not math.isnan(jpy_dxy_corr) else '\u2014', jpy_dxy_col, jpy_dxy_lbl, jpy_dxy_bdg)
+        _mini_signal_row('Oil Corr 60D', f'{jpy_oil_corr:+.3f}' if not pd.isna(jpy_oil_corr) else '\u2014', jpy_oil_col, jpy_oil_lbl, jpy_oil_bdg) +
+        _mini_signal_row('DXY Corr 60D', f'{jpy_dxy_corr:+.3f}' if not pd.isna(jpy_dxy_corr) else '\u2014', jpy_dxy_col, jpy_dxy_lbl, jpy_dxy_bdg)
     )
 
     inr_rows = (
         _mini_signal_row('Vol 30D', inr_vol_str, '#fff', inr_vol_lbl, inr_vol_bdg) +
-        _mini_signal_row('Oil Corr 60D', f'{inr_oil_corr:+.3f}' if not math.isnan(inr_oil_corr) else '\u2014', inr_oil_col, inr_oil_lbl, inr_oil_bdg) +
-        _mini_signal_row('DXY Corr 60D', f'{inr_dxy_corr:+.3f}' if not math.isnan(inr_dxy_corr) else '\u2014', inr_dxy_col, inr_dxy_lbl, inr_dxy_bdg)
+        _mini_signal_row('Oil Corr 60D', f'{inr_oil_corr:+.3f}' if not pd.isna(inr_oil_corr) else '\u2014', inr_oil_col, inr_oil_lbl, inr_oil_bdg) +
+        _mini_signal_row('DXY Corr 60D', f'{inr_dxy_corr:+.3f}' if not pd.isna(inr_dxy_corr) else '\u2014', inr_dxy_col, inr_dxy_lbl, inr_dxy_bdg)
     )
 
+    eur_composite = _g('eurusd_composite_score', float('nan'))
+    jpy_composite = _g('usdjpy_composite_score', float('nan'))
+    inr_composite = _g('inr_composite_score', float('nan'))
+
     eur_card = _pair_card('card-eurusd', '#4da6ff', 'EUR/USD', eur_price, eur_1d, eur_12m,
-                          eur_sp10_str, eur_sp10_dir, eur_sp10_col, eur_rows)
+                          eur_sp10_str, eur_sp10_dir, eur_sp10_col, eur_rows,
+                          composite_score=eur_composite)
     jpy_card = _pair_card('card-usdjpy', '#ff9944', 'USD/JPY', jpy_price, jpy_1d, jpy_12m,
-                          jpy_sp10_str, jpy_sp10_dir, jpy_sp10_col, jpy_rows)
+                          jpy_sp10_str, jpy_sp10_dir, jpy_sp10_col, jpy_rows,
+                          composite_score=jpy_composite)
     inr_card = _pair_card('card-usdinr', '#e74c3c', 'USD/INR', inr_price, inr_1d, inr_12m,
                           inr_sp10_str, inr_sp10_dir, inr_sp10_col, inr_rows,
-                          spread_label='US 2Y\u2013IN 10Y (cross)')
+                          spread_label='US 2Y\u2013IN 10Y (cross)', composite_score=inr_composite)
 
     wordmark_src = embed_image(os.path.join('logos', 'wordmark without bg.png'))
     wordmark_img = f'<img src="{wordmark_src}" class="lp-wordmark" style="height:108px;width:auto;display:block;margin-bottom:20px;" alt="FX Regime Lab">' if wordmark_src else ''
@@ -1115,14 +1136,21 @@ def fig_to_iframe(fig, pair, pane, height=480):
             f'height:{height}px;">Chart unavailable</div>'
         )
     chart_file = f'{CHARTS_DIR}/{pair}_{pane}.html'
-    pio.write_html(
-        fig,
-        file=chart_file,
-        config=plotly_config,
-        full_html=True,
-        include_plotlyjs='cdn',
-        auto_open=False,
-    )
+    try:
+        pio.write_html(
+            fig,
+            file=chart_file,
+            config=plotly_config,
+            full_html=True,
+            include_plotlyjs='cdn',
+            auto_open=False,
+        )
+    except Exception as _we:
+        print(f'  ERROR [fig_to_iframe]: Failed to write {chart_file}: {_we}')
+        return (
+            f'<div style="color:#ff4444;padding:20px;font-size:11px;height:{height}px;">'
+            f'Chart write failed: {_we}</div>'
+        )
     # Post-process: make the plotly-graph-div fill its iframe so charts fill the container
     import re as _rcc
     with open(chart_file, 'r', encoding='utf-8') as _cf:

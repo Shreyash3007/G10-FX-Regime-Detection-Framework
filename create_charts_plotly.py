@@ -1095,3 +1095,316 @@ def build_cross_asset_chart(pair):
     return fig
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  BoJ Signal Chart  (USD/JPY only — pane 4)
+#  Row 1: USD/JPY price + 200D MA
+#  Row 2: US-JP 10Y spread (left y) + 5-day spread acceleration (right y, bars)
+# ─────────────────────────────────────────────────────────────────────────────
+def build_boj_signal_chart(pair):
+    """BoJ market-signal chart — USD/JPY spread momentum and intervention context."""
+    if pair != 'usdjpy':
+        raise ValueError("build_boj_signal_chart() only supports 'usdjpy'")
+
+    d, cutoff, today = _load_and_filter(pair, months=get_chart_months())
+    if d.empty:
+        return None
+
+    has_price  = 'USDJPY' in d.columns
+    has_spread = 'US_JP_10Y_spread' in d.columns
+    has_accel  = 'US_JP_10Y_spread_accel' in d.columns
+    if not has_price:
+        return None
+
+    fig = make_subplots(
+        rows=2, cols=1,
+        shared_xaxes=True,
+        row_heights=[0.55, 0.45],
+        vertical_spacing=0.06,
+        specs=[[{}], [{'secondary_y': True}]],
+    )
+
+    # ── Row 1: USD/JPY price ──────────────────────────────────────────────
+    fig.add_trace(
+        go.Scatter(
+            x=d.index, y=d['USDJPY'],
+            mode='lines', line=dict(color='#ff9944', width=1.5),
+            name='USD/JPY', showlegend=False,
+            hovertemplate='%{x|%d %b %Y}<br>%{y:.2f}<extra></extra>',
+        ),
+        row=1, col=1,
+    )
+
+    # 200D MA (optional, full history needed)
+    try:
+        from core.paths import LATEST_WITH_COT_CSV
+        import pandas as _pd_full
+        df_full = _pd_full.read_csv(LATEST_WITH_COT_CSV, index_col=0, parse_dates=True)
+        df_full.index = _pd_full.to_datetime(df_full.index, utc=False).tz_localize(None).normalize()
+        df_full = df_full[~df_full.index.duplicated(keep='last')].sort_index()
+        ma200 = df_full['USDJPY'].dropna().rolling(200, min_periods=100).mean()
+        ma200 = ma200[ma200.index >= cutoff].dropna()
+        if len(ma200) > 0:
+            fig.add_trace(
+                go.Scatter(
+                    x=ma200.index.strftime('%Y-%m-%d').tolist(), y=ma200.values.tolist(),
+                    mode='lines', line=dict(color='#444444', width=1, dash='dash'),
+                    name='200D MA', showlegend=False,
+                    hovertemplate='%{x|%d %b %Y}<br>200D: %{y:.2f}<extra></extra>',
+                ),
+                row=1, col=1,
+            )
+    except Exception:
+        pass
+
+    # BoJ intervention zone annotations (historical: 145-152 = watch zone, >155 = high risk)
+    price_data = d['USDJPY'].dropna()
+    p_min, p_max = float(price_data.min()), float(price_data.max())
+    p_pad = (p_max - p_min) * 0.08
+    y_lo, y_hi = p_min - p_pad, p_max + p_pad
+    for zone_level, zone_label, zone_color in [
+        (155, 'BoJ Alert ▲', '#ff4444'),
+        (150, 'Watch Zone', '#f0a500'),
+        (145, 'Comfort ▼',  '#00d4aa'),
+    ]:
+        if y_lo <= zone_level <= y_hi:
+            fig.add_hline(
+                y=zone_level, line_dash='dash', line_color=zone_color,
+                line_width=0.8, opacity=0.45, row=1, col=1,
+            )
+            fig.add_annotation(
+                x=d.index[-1], y=zone_level, text=f'  {zone_label}',
+                xref='x', yref='y', xanchor='left', showarrow=False,
+                font=dict(size=8, color=zone_color),
+            )
+
+    # ── Row 2: Spread + Acceleration ─────────────────────────────────────
+    if has_spread:
+        fig.add_trace(
+            go.Scatter(
+                x=d.index, y=d['US_JP_10Y_spread'],
+                mode='lines', line=dict(color='#fda4af', width=1.5),
+                name='US-JP 10Y spread', showlegend=True,
+                hovertemplate='%{x|%d %b %Y}<br>%{y:.2f}pp<extra></extra>',
+            ),
+            row=2, col=1, secondary_y=False,
+        )
+        fig.add_hline(y=0, line_dash='dot', line_color='#333', line_width=1,
+                      row=2, col=1)
+
+    if has_accel:
+        accel = d['US_JP_10Y_spread_accel'].dropna()
+        bar_colors = ['#00d4aa' if v > 0 else '#ff4444' for v in accel]
+        fig.add_trace(
+            go.Bar(
+                x=accel.index, y=accel.values,
+                marker_color=bar_colors, opacity=0.55,
+                name='5D momentum', showlegend=True,
+                hovertemplate='%{x|%d %b %Y}<br>Δ5D: %{y:.2f}pp<extra></extra>',
+            ),
+            row=2, col=1, secondary_y=True,
+        )
+
+    # ── Theme + layout ────────────────────────────────────────────────────
+    fig.update_layout(**_base_layout(height=400))
+    _style_axes(fig)
+    fig.update_layout(
+        legend=dict(
+            x=0.99, y=0.43, xanchor='right', yanchor='top',
+            bgcolor='rgba(13,13,13,0.85)', bordercolor='#2a2a2a', borderwidth=1,
+            font=dict(size=9, color='#cccccc'), itemsizing='constant',
+        )
+    )
+
+    cutoff_str, today_str = cutoff.strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d')
+    fig.update_layout(
+        xaxis =dict(range=[cutoff_str, today_str], type='date'),
+        xaxis2=dict(range=[cutoff_str, today_str], type='date'),
+    )
+    fig.update_yaxes(range=[y_lo, y_hi], row=1, col=1)
+    fig.update_yaxes(title_text='spread (pp)', title_font=dict(size=9, color='#555'),
+                     row=2, col=1, secondary_y=False)
+    fig.update_yaxes(title_text='5D Δ (pp)', title_font=dict(size=9, color='#555'),
+                     row=2, col=1, secondary_y=True)
+
+    # Panel title annotations
+    last_x = d.index[-1]
+    annotations = list(fig.layout.annotations or [])
+    annotations += [
+        dict(text='USD/JPY PRICE  — BoJ intervention thresholds', x=0.01, y=1.0,
+             xref='paper', yref='paper', xanchor='left', yanchor='top',
+             font=dict(size=9, color='#555555'), showarrow=False),
+        dict(text='US-JP 10Y SPREAD (pp)  / 5-day momentum',
+             x=0.01, y=0.55, xref='paper', yref='paper',
+             xanchor='left', yanchor='top',
+             font=dict(size=9, color='#555555'), showarrow=False),
+    ]
+    # End-label on price
+    if len(price_data) > 0:
+        annotations.append(dict(
+            x=last_x, y=float(price_data.iloc[-1]),
+            text=f'  {float(price_data.iloc[-1]):.2f}',
+            xref='x', yref='y', xanchor='left', showarrow=False,
+            font=dict(size=9, color='#ff9944'),
+        ))
+    # End-label on spread
+    if has_spread:
+        s_last = d['US_JP_10Y_spread'].dropna()
+        if len(s_last) > 0:
+            annotations.append(dict(
+                x=last_x, y=float(s_last.iloc[-1]),
+                text=f'  {float(s_last.iloc[-1]):.2f}pp',
+                xref='x2', yref='y3', xanchor='left', showarrow=False,
+                font=dict(size=8, color='#fda4af'),
+            ))
+    fig.update_layout(annotations=tuple(annotations))
+    return fig
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  FPI Capital Flows Chart  (USD/INR only — pane 3)
+#  Row 1: USD/INR price + 200D MA
+#  Row 2: FPI 20D rolling flow bars (Cr INR) + FPI percentile rank (right y)
+# ─────────────────────────────────────────────────────────────────────────────
+def build_fpi_flows_chart(pair):
+    """FPI capital flows chart — USD/INR + Indian foreign investor positioning."""
+    if pair != 'usdinr':
+        raise ValueError("build_fpi_flows_chart() only supports 'usdinr'")
+
+    d, cutoff, today = _load_and_filter(pair, months=get_chart_months())
+    if d.empty:
+        return None
+
+    has_price = 'USDINR' in d.columns
+    has_fpi   = 'FPI_20D_flow' in d.columns
+    has_pct   = 'FPI_20D_percentile' in d.columns
+    if not has_price:
+        return None
+
+    fig = make_subplots(
+        rows=2, cols=1,
+        shared_xaxes=True,
+        row_heights=[0.50, 0.50],
+        vertical_spacing=0.06,
+        specs=[[{}], [{'secondary_y': True}]],
+    )
+
+    # ── Row 1: USD/INR price ──────────────────────────────────────────────
+    price_data = d['USDINR'].dropna()
+    p_min, p_max = float(price_data.min()), float(price_data.max())
+    p_pad = (p_max - p_min) * 0.08
+
+    fig.add_trace(
+        go.Scatter(
+            x=d.index, y=d['USDINR'],
+            mode='lines', line=dict(color='#e74c3c', width=1.5),
+            name='USD/INR', showlegend=False,
+            hovertemplate='%{x|%d %b %Y}<br>%{y:.4f}<extra></extra>',
+        ),
+        row=1, col=1,
+    )
+
+    # 200D MA (optional)
+    try:
+        from core.paths import LATEST_WITH_COT_CSV
+        import pandas as _pd_full2
+        df_full2 = _pd_full2.read_csv(LATEST_WITH_COT_CSV, index_col=0, parse_dates=True)
+        df_full2.index = _pd_full2.to_datetime(df_full2.index, utc=False).tz_localize(None).normalize()
+        df_full2 = df_full2[~df_full2.index.duplicated(keep='last')].sort_index()
+        if 'USDINR' in df_full2.columns:
+            ma200_inr = df_full2['USDINR'].dropna().rolling(200, min_periods=100).mean()
+            ma200_inr = ma200_inr[ma200_inr.index >= cutoff].dropna()
+            if len(ma200_inr) > 0:
+                fig.add_trace(
+                    go.Scatter(
+                        x=ma200_inr.index.strftime('%Y-%m-%d').tolist(),
+                        y=ma200_inr.values.tolist(),
+                        mode='lines', line=dict(color='#444444', width=1, dash='dash'),
+                        name='200D MA', showlegend=False,
+                        hovertemplate='%{x|%d %b %Y}<br>200D: %{y:.4f}<extra></extra>',
+                    ),
+                    row=1, col=1,
+                )
+    except Exception:
+        pass
+
+    # ── Row 2: FPI flow bars + percentile rank ────────────────────────────
+    if has_fpi:
+        fpi_vals = d['FPI_20D_flow'].dropna()
+        bar_colors = ['#00d4aa' if v < 0 else '#ff4444' for v in fpi_vals]
+        # Note: negative FPI_20D_flow = net inflow (INR appreciation pressure)
+        fig.add_trace(
+            go.Bar(
+                x=fpi_vals.index, y=fpi_vals.values,
+                marker_color=bar_colors, opacity=0.70,
+                name='FPI 20D flow (Cr INR)', showlegend=True,
+                hovertemplate='%{x|%d %b %Y}<br>FPI: ₹%{y:,.0f} Cr<extra></extra>',
+            ),
+            row=2, col=1, secondary_y=False,
+        )
+        fig.add_hline(y=0, line_dash='dot', line_color='#333', line_width=1,
+                      row=2, col=1)
+
+    if has_pct:
+        pct_vals = d['FPI_20D_percentile'].dropna()
+        fig.add_trace(
+            go.Scatter(
+                x=pct_vals.index, y=pct_vals.values,
+                mode='lines', line=dict(color='#d8b4fe', width=1.2, dash='dot'),
+                name='FPI pct rank', showlegend=True,
+                hovertemplate='%{x|%d %b %Y}<br>Pct: %{y:.0f}<extra></extra>',
+            ),
+            row=2, col=1, secondary_y=True,
+        )
+        # Threshold lines for extreme positioning
+        fig.add_hline(y=80, line_color='#ff4444', line_dash='dash', line_width=0.8,
+                      opacity=0.4, row=2, col=1)
+        fig.add_hline(y=20, line_color='#00d4aa', line_dash='dash', line_width=0.8,
+                      opacity=0.4, row=2, col=1)
+
+    # ── Theme + layout ────────────────────────────────────────────────────
+    fig.update_layout(**_base_layout(height=380))
+    _style_axes(fig)
+    fig.update_layout(
+        legend=dict(
+            orientation='h', x=0.0, y=-0.08, xanchor='left', yanchor='top',
+            bgcolor='rgba(0,0,0,0)', font=dict(size=9, color='#666666'),
+            itemsizing='constant',
+        ),
+        margin=dict(l=52, r=60, t=30, b=50),
+    )
+
+    cutoff_str, today_str = cutoff.strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d')
+    fig.update_layout(
+        xaxis =dict(range=[cutoff_str, today_str], type='date'),
+        xaxis2=dict(range=[cutoff_str, today_str], type='date'),
+    )
+    fig.update_yaxes(range=[p_min - p_pad, p_max + p_pad], row=1, col=1)
+    fig.update_yaxes(title_text='FPI flow (Cr INR)', title_font=dict(size=9, color='#555'),
+                     row=2, col=1, secondary_y=False)
+    fig.update_yaxes(range=[0, 100], title_text='pct rank',
+                     title_font=dict(size=9, color='#555'),
+                     row=2, col=1, secondary_y=True)
+
+    # Panel title annotations
+    last_x = d.index[-1]
+    annotations = list(fig.layout.annotations or [])
+    annotations += [
+        dict(text='USD/INR PRICE  (green < 0 = inflow = INR strength)',
+             x=0.01, y=1.0, xref='paper', yref='paper',
+             xanchor='left', yanchor='top',
+             font=dict(size=9, color='#555555'), showarrow=False),
+        dict(text='FPI 20D ROLLING FLOW (Cr INR)  ·  percentile rank →',
+             x=0.01, y=0.52, xref='paper', yref='paper',
+             xanchor='left', yanchor='top',
+             font=dict(size=9, color='#555555'), showarrow=False),
+    ]
+    if len(price_data) > 0:
+        annotations.append(dict(
+            x=last_x, y=float(price_data.iloc[-1]),
+            text=f'  {float(price_data.iloc[-1]):.4f}',
+            xref='x', yref='y', xanchor='left', showarrow=False,
+            font=dict(size=9, color='#e74c3c'),
+        ))
+    fig.update_layout(annotations=tuple(annotations))
+    return fig
+

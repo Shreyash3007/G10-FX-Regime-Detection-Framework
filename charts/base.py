@@ -78,6 +78,8 @@ def _load_and_filter(pair=None, months=12):
     d = d.sort_index()
     d = d[d.index.notna()].copy()
     d = d[~d.index.duplicated(keep='last')].copy()
+    if d.empty:
+        return d, cutoff, today
     d.index = d.index.strftime('%Y-%m-%d')
 
     return d, cutoff, today

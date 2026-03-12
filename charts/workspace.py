@@ -41,9 +41,10 @@ SERIES_CATALOGUE = [
     # Rate Spreads
     ("US_DE_10Y_spread",     "US-DE 10Y",        "Rate Spreads", "spread", "#7dd3fc"),
     ("US_DE_2Y_spread",      "US-DE 2Y",         "Rate Spreads", "spread", "#38bdf8"),
-    ("US_JP_10Y_spread",     "US-JP 10Y",        "Rate Spreads", "spread", "#fda4af"),
-    ("US_JP_2Y_spread",      "US-JP 2Y",         "Rate Spreads", "spread", "#fb7185"),
-    ("US_IN_10Y_spread",     "US-IN 10Y",        "Rate Spreads", "spread", "#d8b4fe"),
+    ("US_JP_10Y_spread",       "US-JP 10Y",          "Rate Spreads", "spread", "#fda4af"),
+    ("US_JP_2Y_spread",       "US-JP 2Y",           "Rate Spreads", "spread", "#fb7185"),
+    ("US_JP_10Y_spread_accel","US-JP 10Y Accel(5D)", "Rate Spreads", "spread", "#f9a8d4"),
+    ("US_IN_10Y_spread",      "US-IN 10Y",          "Rate Spreads", "spread", "#d8b4fe"),
 ]
 
 # Default checked series per pair (pair=None means global)
@@ -63,7 +64,7 @@ def _load_series(months=3):
         return None
     df.index = pd.to_datetime(df.index, utc=False).tz_localize(None).normalize()
     df = df[~df.index.duplicated(keep='last')].sort_index()
-    cutoff = pd.Timestamp.today().normalize() - pd.DateOffset(months=months)
+    cutoff = pd.Timestamp.now(tz='UTC').normalize().tz_localize(None) - pd.DateOffset(months=months)
     df = df[df.index >= cutoff]
     # Convert index to string dates for JSON
     df.index = df.index.strftime('%Y-%m-%d')
@@ -183,6 +184,8 @@ body{{background:#0a0e1a;color:#cccccc;font-family:'Inter',system-ui,sans-serif;
 #ctrl input[type=checkbox]{{accent-color:#4da6ff;cursor:pointer}}
 .ctrl-btn{{background:#1e1e1e;border:1px solid #2a2a2a;color:#777;padding:3px 10px;font-size:11px;cursor:pointer;border-radius:3px}}
 .ctrl-btn:hover{{background:#252525;color:#aaa}}
+.preset-btn{{padding:3px 8px;font-size:10px;letter-spacing:0.04em}}
+.preset-active{{border-color:#4da6ff!important;color:#4da6ff!important;background:rgba(77,166,255,0.08)!important}}
 #ctrl-hint{{flex:1;text-align:right;color:#333;font-size:9px;font-style:italic}}
 #main{{display:flex;flex:1;overflow:hidden}}
 #sidebar{{width:192px;flex-shrink:0;background:#141414;border-right:1px solid #2a2a2a;overflow-y:auto;display:flex;flex-direction:column}}
@@ -213,6 +216,13 @@ body{{background:#0a0e1a;color:#cccccc;font-family:'Inter',system-ui,sans-serif;
   <div class="ctrl-sep"></div>
   <label><input type="checkbox" id="cb-norm"> Normalize to 100</label>
   <button class="ctrl-btn" id="btn-reset">Reset</button>
+  <div class="ctrl-sep"></div>
+  <span style="color:#444;font-size:9px;letter-spacing:1px;text-transform:uppercase">Presets</span>
+  <button class="ctrl-btn preset-btn" data-preset="carry" title="EUR/USD, USD/JPY + rate spreads">CARRY</button>
+  <button class="ctrl-btn preset-btn" data-preset="em" title="USD/INR, USD/JPY + EM correlations">EM CROSS</button>
+  <button class="ctrl-btn preset-btn" data-preset="rates" title="All 5 rate spread series">RATES</button>
+  <button class="ctrl-btn preset-btn" data-preset="riskoff" title="All 3 FX pairs + oil correlations">RISK-OFF</button>
+  <button class="ctrl-btn preset-btn" data-preset="commodity" title="Brent, Gold + oil correlations">COMMODITY</button>
   <div class="ctrl-sep"></div>
   <button class="ctrl-btn" id="btn-sidebar">&#9664; Hide</button>
   <span id="ctrl-hint">scroll=zoom · drag=pan · click legend=toggle</span>
@@ -274,6 +284,7 @@ function _findLastLE(arr, val) {{
 function filterByDate(keys) {{
   const from = document.getElementById('dt-from').value;
   const to   = document.getElementById('dt-to').value;
+  if (from && to && from > to) return {{dates: [], series: {{}}}};
   const dates = DATA.dates;
   const i0 = from ? dates.findIndex(d => d >= from) : 0;
   const i1 = to   ? _findLastLE(dates, to) + 1 : dates.length;
@@ -392,6 +403,33 @@ document.getElementById('btn-reset').addEventListener('click', function() {{
     cb.checked = cb.defaultChecked;
   }});
   update();
+}});
+
+// Preset layout buttons
+const PRESETS = {{
+  carry:     ['EURUSD', 'USDJPY', 'US_DE_10Y_spread', 'US_JP_10Y_spread'],
+  em:        ['USDINR', 'USDJPY', 'oil_inr_corr_60d', 'dxy_inr_corr_60d', 'US_IN_10Y_spread'],
+  rates:     ['US_DE_10Y_spread', 'US_DE_2Y_spread', 'US_JP_10Y_spread', 'US_JP_2Y_spread', 'US_IN_10Y_spread'],
+  riskoff:   ['EURUSD', 'USDJPY', 'USDINR', 'oil_eurusd_corr_60d', 'oil_usdjpy_corr_60d', 'oil_inr_corr_60d'],
+  commodity: ['Brent', 'Gold', 'oil_eurusd_corr_60d', 'oil_usdjpy_corr_60d', 'oil_inr_corr_60d'],
+}};
+document.querySelectorAll('.preset-btn').forEach(function(btn) {{
+  btn.addEventListener('click', function() {{
+    const keys = PRESETS[this.dataset.preset] || [];
+    document.querySelectorAll('#sidebar input[type=checkbox][data-key]').forEach(cb => {{
+      cb.checked = keys.includes(cb.dataset.key);
+    }});
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('preset-active'));
+    this.classList.add('preset-active');
+    update();
+  }});
+}});
+
+// Deactivate preset highlight on manual checkbox toggle
+document.querySelectorAll('#sidebar input[type=checkbox][data-key]').forEach(cb => {{
+  cb.addEventListener('change', function() {{
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('preset-active'));
+  }});
 }});
 
 // Correlation dropdown listeners
