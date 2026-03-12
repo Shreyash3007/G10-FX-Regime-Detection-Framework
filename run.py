@@ -63,6 +63,11 @@ STEPS = [
 # When --only merge is requested, pipeline.py still runs (the merge phase is its final step).
 _STEP_NAMES = [name for name, _ in STEPS]
 
+# Steps that are non-blocking: pipeline continues even if they fail.
+# ai_brief.py has no ANTHROPIC_API_KEY on CI → always exits 0, but guard
+# here ensures a true failure (import error, crash) is still non-fatal.
+NON_BLOCKING_STEPS = {"ai"}
+
 
 def _run_step(name, script, python_exe):
     """Run one pipeline step.  Returns (success: bool, elapsed_seconds: float)."""
@@ -180,9 +185,12 @@ def main():
                 print(f'OK  {name}  -- {elapsed:.1f}s')
             else:
                 print(f'FAIL  {name} after {elapsed:.1f}s')
-                print(f'   Fix {script} and re-run:  python run.py --only {name}')
-                failed = True
-                break
+                if name in NON_BLOCKING_STEPS:
+                    print(f'   WARN: {name} failed — non-blocking, pipeline continues')
+                else:
+                    print(f'   Fix {script} and re-run:  python run.py --only {name}')
+                    failed = True
+                    break
 
         total = time.perf_counter() - total_start
 

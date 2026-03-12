@@ -1213,7 +1213,7 @@ def generate_html_brief(months: int = 12):
     brief_file = load_latest_brief_data()
     if not brief_file:
         print("No previous brief found. Run morning_brief.py first.")
-        return
+        sys.exit(1)
 
     with open(brief_file, 'r', encoding='utf-8') as f:
         html_content = f.read()

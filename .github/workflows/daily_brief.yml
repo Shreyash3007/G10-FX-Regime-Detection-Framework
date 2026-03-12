@@ -9,10 +9,16 @@ on:
 permissions:
   contents: write      # needed to push index.html back to repo
 
+concurrency:
+  group: daily-brief
+  cancel-in-progress: true
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
     steps:
       - name: Checkout repo
