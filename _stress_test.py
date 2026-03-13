@@ -115,7 +115,7 @@ all_pass = all_pass and r
 
 print("\n" + "=" * 60)
 if all_pass:
-    print("  ALL CHECKS PASSED ✓")
+    print("  ALL CHECKS PASSED [OK]")
 else:
     print("  SOME CHECKS FAILED -- review output above")
 print("=" * 60)

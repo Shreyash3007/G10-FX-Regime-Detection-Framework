@@ -364,7 +364,7 @@ def inject_live_card_data(html_content, _re, df=None):
             price_col='USDINR', price_dec=2,
             chg_1d='USDINR_chg_1D', chg_12m='USDINR_chg_12M',
             spreads=[
-                ('US–IN 10Y',   'US_IN_10Y_spread',    None, True),
+                ('US–IN 10Y',   'US_IN_10Y_spread',    'US_IN_10Y_spread_chg_12M', True),
                 ('US-IN Policy',  'US_IN_policy_spread', None, True),
             ],
             cot_lev_net=None, cot_lev_pctoi=None, cot_lev_pct=None,
@@ -469,7 +469,7 @@ def inject_live_card_data(html_content, _re, df=None):
                     elif fpi_pct_val <= 25: fpi_bdg = 'badge-danger',  f'HEAVY {fpi_dir}'
                     else:                   fpi_bdg = 'badge-neutral', fpi_dir
                 else:
-                    fpi_pct_str = '\u2014'
+                    fpi_pct_str = 'BUILDING'
                     fpi_bdg = ('badge-neutral', fpi_dir)
                 fpi_row = (
                     f'<div class="brief-row">'
