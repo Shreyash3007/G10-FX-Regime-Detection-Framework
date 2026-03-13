@@ -106,6 +106,26 @@ def fetch_fx_data():
     prices = prices[prices.index.dayofweek < 5]
 
     # DXY trades on ICE with different holidays -- fill gaps up to MAX_FFILL_DAYS days
+    # Fallback: yfinance silently drops DXY from batch downloads; retry standalone with DX=F
+    if "DXY" not in prices.columns or prices["DXY"].tail(5).isna().all():
+        print("    DXY missing/NaN from batch -- retrying standalone with DX=F...")
+        try:
+            _dxy_raw = yf.download(
+                "DX=F", start=START_DATE, end=TODAY,
+                interval="1d", auto_adjust=True, progress=False
+            )
+            if not _dxy_raw.empty:
+                _dxy_series = (_dxy_raw["Close"] if "Close" in _dxy_raw.columns
+                               else _dxy_raw.iloc[:, 0]).copy()
+                _dxy_series.index = pd.to_datetime(_dxy_series.index.date)
+                _dxy_series = _dxy_series[_dxy_series.index.date < pd.Timestamp(TODAY).date()]
+                _dxy_series = _dxy_series[_dxy_series.index.dayofweek < 5]
+                prices["DXY"] = _dxy_series
+                print(f"    DXY fallback (DX=F) OK -- {int(_dxy_series.notna().sum())} rows")
+            else:
+                print("    DXY fallback (DX=F) returned empty -- DXY will be NaN")
+        except Exception as _dxy_err:
+            print(f"    DXY fallback failed: {_dxy_err}")
     if "DXY" in prices.columns:
         prices["DXY"] = prices["DXY"].ffill(limit=MAX_FFILL_DAYS)
 

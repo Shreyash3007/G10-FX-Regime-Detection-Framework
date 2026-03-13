@@ -909,6 +909,14 @@ def inject_landing_page(html_content, _re, df=None):
     inr_dxy_lbl, _ = _dxy_corr_label(inr_dxy_corr, 'USDINR') if not pd.isna(inr_dxy_corr) else ('NO DATA', '')
     inr_dxy_col     = '#4da6ff' if inr_dxy_lbl == 'DOLLAR REGIME' else '#00d4aa' if 'SPECIFIC' in inr_dxy_lbl else '#888'
     inr_dxy_bdg     = 'badge-info' if inr_dxy_lbl == 'DOLLAR REGIME' else 'badge-success' if 'SPECIFIC' in inr_dxy_lbl else 'badge-neutral'
+    inr_gold_corr   = _g('gold_inr_corr_60d', float('nan'))
+    inr_gold_lbl, _ = _gold_corr_label(inr_gold_corr, 'USDINR') if not pd.isna(inr_gold_corr) else ('NO DATA', '')
+    inr_gold_col    = '#f0a500' if inr_gold_lbl == 'GOLD DIVERGENCE' else '#00d4aa' if inr_gold_lbl in ('STRONG', 'MODERATE') else '#888'
+    inr_gold_bdg    = 'badge-warning' if inr_gold_lbl == 'GOLD DIVERGENCE' else 'badge-success' if inr_gold_lbl in ('STRONG', 'MODERATE') else 'badge-neutral'
+    inr_rbi_raw     = str(row.get('rbi_intervention_flag', 'NEUTRAL'))
+    if inr_rbi_raw == 'nan': inr_rbi_raw = 'NEUTRAL'
+    inr_rbi_text, inr_rbi_color, _ = _rbi_intervention_label(inr_rbi_raw)
+    inr_rbi_bdg     = 'badge-success' if inr_rbi_raw == 'ACTIVE SUPPORT' else 'badge-warning' if inr_rbi_raw == 'ACTIVE CAPPING' else 'badge-neutral'
     inr_vol_pct     = _g('USDINR_vol_pct', float('nan'))
     inr_vol30       = _g('USDINR_vol30', float('nan'))
     inr_vol_str     = f'{inr_vol30:.1f}%' if not pd.isna(inr_vol30) else '\u2014'
@@ -1007,7 +1015,9 @@ def inject_landing_page(html_content, _re, df=None):
     inr_rows = (
         _mini_signal_row('Vol 30D', inr_vol_str, '#fff', inr_vol_lbl, inr_vol_bdg) +
         _mini_signal_row('Oil Corr 60D', f'{inr_oil_corr:+.3f}' if not pd.isna(inr_oil_corr) else '\u2014', inr_oil_col, inr_oil_lbl, inr_oil_bdg) +
-        _mini_signal_row('DXY Corr 60D', f'{inr_dxy_corr:+.3f}' if not pd.isna(inr_dxy_corr) else '\u2014', inr_dxy_col, inr_dxy_lbl, inr_dxy_bdg)
+        _mini_signal_row('DXY Corr 60D', f'{inr_dxy_corr:+.3f}' if not pd.isna(inr_dxy_corr) else '\u2014', inr_dxy_col, inr_dxy_lbl, inr_dxy_bdg) +
+        _mini_signal_row('Gold Corr 60D', f'{inr_gold_corr:+.3f}' if not pd.isna(inr_gold_corr) else '\u2014', inr_gold_col, inr_gold_lbl, inr_gold_bdg) +
+        _mini_signal_row('RBI Reserves', '\u2014', inr_rbi_color, inr_rbi_text, inr_rbi_bdg)
     )
 
     eur_composite = _g('eurusd_composite_score', float('nan'))
