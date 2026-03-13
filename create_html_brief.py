@@ -1050,6 +1050,33 @@ def inject_landing_page(html_content, _re, df=None):
     else:
         macro_strip_html = ''
 
+    # --- Macro calendar (collapsible, next 12 events) ---
+    macro_cal_html = ''
+    try:
+        import json as _json
+        _today = pd.Timestamp.today().normalize()
+        _events_raw = _json.load(open('cb_events.json'))
+        _future = sorted((d, e) for d, e in _events_raw.items()
+                         if pd.Timestamp(d) >= _today)
+        if _future:
+            rows = ''
+            for d, e in _future[:12]:
+                dt = pd.Timestamp(d)
+                diff = (dt - _today).days
+                days_lbl = 'TODAY' if diff == 0 else ('1d' if diff == 1 else f'{diff}d')
+                rows += (f'<div class="macro-cal-date">{dt.strftime("%b %d")}</div>'
+                         f'<div class="macro-cal-event">{e}</div>'
+                         f'<div class="macro-cal-days">{days_lbl}</div>')
+            n = len(_future[:12])
+            macro_cal_html = (
+                f'<details class="macro-cal">'
+                f'<summary>MACRO CALENDAR &#9660;&nbsp;({n} events)</summary>'
+                f'<div class="macro-cal-grid">{rows}</div>'
+                f'</details>'
+            )
+    except Exception:
+        pass
+
     from config import TODAY_FMT
     landing_html = f'''<!-- LANDING PAGE -->
 <div id="landing">
@@ -1063,7 +1090,7 @@ def inject_landing_page(html_content, _re, df=None):
     </div>
     <a href="#workspace-snap" class="lp-ws-btn">WORKSPACE &#9654;</a>
   </div>
-  {macro_strip_html}<div class="lp-ticker-bar">{ticker_html}</div>
+  {macro_strip_html}{macro_cal_html}<div class="lp-ticker-bar">{ticker_html}</div>
   <div class="lp-grid">
     {eur_card}
     {jpy_card}

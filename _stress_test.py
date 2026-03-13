@@ -6,7 +6,9 @@ import re
 import sys
 import os
 
-BRIEF = "briefs/brief_20260312.html"
+import glob as _glob
+_briefs = sorted(f for f in _glob.glob('briefs/brief_*.html') if os.path.getsize(f) > 0)
+BRIEF = _briefs[-1] if _briefs else "briefs/brief_20260313.html"
 
 def check(condition, msg):
     status = "PASS" if condition else "FAIL"

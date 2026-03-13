@@ -992,8 +992,8 @@ def build_cross_asset_chart(pair):
     fig.update_layout(
         legend=dict(
             orientation='h',
-            x=0.0, y=-0.09,
-            xanchor='left', yanchor='top',
+            x=0.5, y=-0.09,
+            xanchor='center', yanchor='top',
             bgcolor='rgba(0,0,0,0)',
             font=dict(size=9, color='#666666'),
             itemsizing='constant',
