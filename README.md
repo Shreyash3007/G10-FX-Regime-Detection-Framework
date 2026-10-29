@@ -1,5 +1,7 @@
 # G10 FX Regime Detection Framework
 
+> **Repository scope — updated 30 October 2026:** this is the earlier daily FX research pipeline, with data collection, CFTC positioning, morning briefs and static publishing. The current public product is [FX Regime Lab](https://fxregimelab.com). This repository is not the complete current platform. Research only; no validated forecasting or profitability claim is made. Market examples and “current” figures in the original project notes below are historical February 2026 observations, not live data.
+
 An automated daily pipeline that detects FX regimes for EUR/USD and USD/JPY
 by combining rate differential analysis with speculative positioning data.
 
